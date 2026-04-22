@@ -1,17 +1,9 @@
-"""add oauth provider and id
-
-Revision ID: 2c19ff72bc99
-Revises: e569018c1e31
-Create Date: 2026-04-18 12:50:50.472994
-
-"""
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
 
 
-# revision identifiers, used by Alembic.
 revision: str = '2c19ff72bc99'
 down_revision: Union[str, Sequence[str], None] = 'e569018c1e31'
 branch_labels: Union[str, Sequence[str], None] = None

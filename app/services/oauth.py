@@ -58,8 +58,6 @@ class OAuthService:
         return response.json()
 
     async def login_or_register(self, code: str) -> dict:
-        """Main OAuth flow — login or register via Google."""
-        
         token_data = await self.exchange_code_for_token(code)
         user_info = await self.get_google_user_info(token_data["access_token"])
         

@@ -33,11 +33,11 @@ async def test_register_already_exists(auth_service, mock_db):
     data = UserCreate(email="exists@ex.com", username="sdasdas", password="asdasdasd21321")
     
     with patch("app.services.auth_service.get_user_email", AsyncMock(return_value=True)):
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(HTTPException) as ex:
             await auth_service.register_user(data)
         
-        assert exc.value.status_code == 400
-        assert "Email already registered" in exc.value.detail
+        assert ex.value.status_code == 400
+        assert "Email already registered" in ex.value.detail
 
 
 @pytest.mark.asyncio
@@ -61,3 +61,13 @@ async def test_register_shord_username(auth_service,mock_db):
         )
 
     assert "username" in str(ex.value)
+
+
+@pytest.mark.asyncio
+async def test_register_incorrect_email(auth_service,mock_db):
+    with pytest.raises(ValidationError) as ex:
+        UserCreate(
+            email="ass",
+            username="asdas",
+            password="sadasdsad"
+        )

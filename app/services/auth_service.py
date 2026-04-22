@@ -35,7 +35,7 @@ class AuthService:
     async def login_user(self, data: UserLogin) -> dict:
         user = await get_user_email(self.db, data.email)
         if not user:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
+            raise HTTPException(status_code=401, detail="User not found")
         
         if not user.password:
             raise HTTPException(
@@ -44,7 +44,7 @@ class AuthService:
             )
         
         if not verify_password(data.password, user.password):
-            raise HTTPException(status_code=401, detail="Invalid credentials")
+            raise HTTPException(status_code=401, detail="Invalid password")
         
         access_token = create_token({"sub": str(user.id), "email": user.email})
         refresh_token = create_refresh_token({"sub": str(user.id), "email": user.email})
@@ -62,14 +62,14 @@ class AuthService:
     async def refresh_tokens(self, token: str) -> dict:
         payload = decode_refresh_token(token)
         if not payload:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+            raise HTTPException(status_code=401, detail="Invalid refresh token")
 
         user = await get_user_by_id(self.db, payload["sub"])
         if not user or not user.refresh_token:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+            raise HTTPException(status_code=401, detail="User not found")
 
         if not verify_password(token, user.refresh_token):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+            raise HTTPException(status_code=401, detail="Invalid password")
 
         access_token = create_token({"sub": str(user.id), "email": user.email})
         refresh_token = create_refresh_token({"sub": str(user.id), "email": user.email})
