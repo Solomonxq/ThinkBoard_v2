@@ -15,10 +15,12 @@ class IdeaService:
     async def create_idea(self, data: IdeaCreate, user_id: str, board_id: str):
         existing_idea = await get_idea_by_title(self.db, data.title, board_id)
         if existing_idea:
+            self.logger.error(f"Idea with title '{data.title}' already exists in board {board_id}")
             raise HTTPException(status_code=400, detail="Idea with this title already exists in the board")
 
         member_chek = await user_member_of_board(self.db, user_id, board_id)
         if not member_chek:
+            self.logger.error(f"User {user_id} is not a member of board {board_id}")
             raise HTTPException(status_code=403, detail="User is not a member of the board")
 
         self.logger.info(
@@ -33,9 +35,12 @@ class IdeaService:
     async def delete_idea(self, idea_id: str, user_id: str, board_id: str):
         idea = await get_idea_by_id(self.db, idea_id)
         if not idea:
+            self.logger.error(f"Idea with ID {idea_id} not found for deletion")
             raise HTTPException(status_code=404, detail="Idea not found")
         if not await check_idea_in_board(self.db, idea_id, idea.board_id):
+            self.logger.error(f"Idea with ID {idea_id} not found in the specified board")
             raise HTTPException(status_code=404, detail="Idea not found in the specified board")
         if not await owner_of_idea(self.db, user_id, idea_id):
+            self.logger.error(f"User {user_id} is not the owner of idea {idea_id}")
             raise HTTPException(status_code=403, detail="User is not the owner of the idea")
         await delete_idea_crud(self.db, idea_id)

@@ -3,13 +3,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.logging import setup_logging
 from app.crud.board import (
     get_board_by_id,
-    get_user_by_id_simple,
-    get_users_by_ids,
-    create_board as crud_create_board
+    create_board as crud_create_board,
+    is_owner,
+    delete_board as crud_delete_board,
+    add_user_to_board as crud_add_user_to_board,
+    delete_user_from_board as crud_delete_user_from_board,
+    delete_users_from_board as crud_delete_users_from_board,
+    add_to_favorite_boards as crud_add_to_favorite_boards,
+    remove_from_favorite_boards as crud_remove_from_favorite_boards
 )
+from app.crud.user import get_user_by_id
 from app.schemas.board import BoardCreate
 from app.models.board import Board
 from app.models.user import User
+from pydantic import ValidationError
 
 
 class BoardService:
@@ -17,110 +24,125 @@ class BoardService:
         self.db = db
         self.logger = setup_logging()
 
-    async def _verify_board_owner(self, board: Board, current_user_id: str) -> None:
-        if not board:
-            raise HTTPException(status_code=404, detail="Board not found")
-        if board.owner_id != current_user_id:
-            raise HTTPException(status_code=403, detail="Only owner can perform this action")
 
-    async def _commit_and_refresh(self, obj: User) -> None:
-        try:
-            await self.db.commit()
-            await self.db.refresh(obj)
-        except Exception as e:
-            await self.db.rollback()
-            self.logger.error(f"Database error: {e}")
-            raise
-
-    async def create_board(self, data: BoardCreate, owner_id: str) -> Board:
+    async def create_board(self,data: BoardCreate, owner_id: str) -> Board:
         self.logger.info(f"Creating board '{data.board_name}' for owner {owner_id}")
-        return await crud_create_board(self.db, data, owner_id)
+        try:
+            return await crud_create_board(self.db, data, owner_id)
+        except ValidationError as e:
+            self.logger.error(f"Validation error occurred while creating board: {e}")
+            raise HTTPException(status_code=422, detail="Invalid board data")
+        except Exception as e:
+            self.logger.error(f"Error occurred while creating board: {e}")
+            raise HTTPException(status_code=500, detail="Failed to create board")
 
-    async def add_member(self, board_id: str, user_id: str, current_user_id: str) -> Board:
-        self.logger.info(f"Adding member {user_id} to board {board_id}")
+
+    async def delete_board(self,board_id:str,user_id:str):
         board = await get_board_by_id(self.db, board_id)
-        await self._verify_board_owner(board, current_user_id)
-
-        user = await get_user_by_id_simple(self.db, user_id)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        if user in board.members:
-            raise HTTPException(status_code=400, detail="User already a member")
-
-        board.members.append(user)
-        await self.db.commit()
-        return await get_board_by_id(self.db, board_id)
-
-    async def remove_member(self, board_id: str, user_id: str, current_user_id: str) -> Board:
-        self.logger.info(f"Removing member {user_id} from board {board_id}")
-        board = await get_board_by_id(self.db, board_id)
-        await self._verify_board_owner(board, current_user_id)
-
-        user = await get_user_by_id_simple(self.db, user_id)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        if user not in board.members:
-            raise HTTPException(status_code=400, detail="User is not a member")
-
-        board.members.remove(user)
-        await self.db.commit()
-        return await get_board_by_id(self.db, board_id)
-
-    async def bulk_add_members(self, board_id: str, user_ids: list[str], current_user_id: str) -> Board:
-        self.logger.info(f"Bulk adding {len(user_ids)} members to board {board_id}")
-        board = await get_board_by_id(self.db, board_id)
-        await self._verify_board_owner(board, current_user_id)
-
-        users = await get_users_by_ids(self.db, user_ids)
-        if len(users) != len(user_ids):
-            raise HTTPException(status_code=404, detail="One or more users not found")
-
-        for user in users:
-            if user not in board.members:
-                board.members.append(user)
-
-        await self.db.commit()
-        return await get_board_by_id(self.db, board_id)
-
-    async def bulk_remove_members(self, board_id: str, user_ids: list[str], current_user_id: str) -> Board:
-        self.logger.info(f"Bulk removing {len(user_ids)} members from board {board_id}")
-        board = await get_board_by_id(self.db, board_id)
-        await self._verify_board_owner(board, current_user_id)
-
-        users = await get_users_by_ids(self.db, user_ids)
-        if len(users) != len(user_ids):
-            raise HTTPException(status_code=404, detail="One or more users not found")
-
-        for user in users:
-            if user in board.members:
-                board.members.remove(user)
-
-        await self.db.commit()
-        return await get_board_by_id(self.db, board_id)
-
-    async def add_to_favorites(self, board_id: str, current_user: User) -> User:
-        self.logger.info(f"Adding board {board_id} to favorites for user {current_user.id}")
-        board = await get_board_by_id(self.db, board_id)
-
         if not board:
+            self.logger.error(f"Board with ID {board_id} not found for deletion")
             raise HTTPException(status_code=404, detail="Board not found")
+        owner = await is_owner(self.db, user_id, board_id)
+        if not owner:
+            self.logger.error(f"User {user_id} is not the owner of board {board_id}")
+            raise HTTPException(status_code=403, detail="Only owner can delete the board")
+        try:
+            await crud_delete_board(self.db, board_id)
+        except Exception as e:
+            self.logger.error(f"Error occurred while deleting board {board_id}: {e}")
+            raise HTTPException(status_code=500, detail="Failed to delete board")
 
-        if any(b.id == board_id for b in current_user.favorite_boards):
-            raise HTTPException(status_code=400, detail="Already in favorites")
 
-        current_user.favorite_boards.append(board)
-        await self._commit_and_refresh(current_user)
+    async def add_user_to_board(self, board_id: str, user_id: str):
+        user = await get_user_by_id(self.db, user_id)
+        if not user:
+            self.logger.error(f"User with ID {user_id} not found for adding to board {board_id}")
+            raise HTTPException(status_code=404, detail="User not found")
+        board = await get_board_by_id(self.db, board_id)
+        if not board:
+            self.logger.error(f"Board with ID {board_id} not found for adding user {user_id}")
+            raise HTTPException(status_code=404, detail="Board not found")
+        try:
+            await crud_add_user_to_board(self.db, board_id, user_id)
+        except ValidationError as e:
+            self.logger.error(f"Validation error occurred while adding user {user_id} to board {board_id}: {e}")
+            raise HTTPException(status_code=422, detail="Invalid data for adding user to board")
+        except Exception as e:
+            self.logger.error(f"Error occurred while adding user {user_id} to board {board_id}: {e}")
+            raise HTTPException(status_code=500, detail="Failed to add user to board")
+        
+    async def delete_user_from_board(self, board_id: str, user_id: str,owner_id:str):
+        owner = await is_owner(self.db, owner_id, board_id)
+        if not owner:
+            self.logger.error(f"User {owner_id} is not the owner of board {board_id} for removing user {user_id}")
+            raise HTTPException(status_code=403, detail="Only owner can remove users from the board")
+        user = await get_user_by_id(self.db, user_id)
+        if not user:
+            self.logger.error(f"User with ID {user_id} not found for removing from board {board_id}")
+            raise HTTPException(status_code=404, detail="User not found")
+        board = await get_board_by_id(self.db, board_id)
+        if not board:
+            self.logger.error(f"Board with ID {board_id} not found for removing user {user_id}")
+            raise HTTPException(status_code=404, detail="Board not found")
+        try:
+            await crud_delete_user_from_board(self.db, board, user_id)
+        except ValidationError as e:
+            self.logger.error(f"Validation error occurred while removing user {user_id} from board {board_id}: {e}")
+            raise HTTPException(status_code=422, detail="Invalid data for removing user from board")
+        except Exception as e:
+            self.logger.error(f"Error occurred while removing user {user_id} from board {board_id}: {e}")
+            raise HTTPException(status_code=500, detail="Failed to remove user from board")
+        
+    async def add_users_to_board(self,board_id:str, user_ids:list[str]):
+        for user_id in user_ids:
+            try:
+                await self.add_user_to_board(board_id, user_id)
+            except HTTPException as e:
+                self.logger.error(f"HTTP error occurred while adding user {user_id} to board {board_id}: {e.detail}")
+                raise e
+            except Exception as e:
+                self.logger.error(f"Error occurred while adding user {user_id} to board {board_id}: {e}")
+                raise HTTPException(status_code=500, detail="Failed to add users to board")
+            
+    async def delete_users_from_board(self, board_id: str, user_ids: list[str]):
+        board = await get_board_by_id(self.db, board_id)
+        if not board:
+            self.logger.error(f"Board with ID {board_id} not found for removing users {user_ids}")
+            raise HTTPException(status_code=404, detail="Board not found")
+        try:
+            await crud_delete_users_from_board(self.db, board, user_ids)
+        except ValidationError as e:
+            self.logger.error(f"Validation error occurred while removing users {user_ids} from board {board_id}: {e}")
+            raise HTTPException(status_code=422, detail="Invalid data for removing users from board")
+        except Exception as e:
+            self.logger.error(f"Error occurred while removing users {user_ids} from board {board_id}: {e}")
+            raise HTTPException(status_code=500, detail="Failed to remove users from board")
+        
+    async def add_to_favorite_boards(self, board_id: str, user_id: str):
+        board = await get_board_by_id(self.db, board_id)
+        if not board:
+            self.logger.error(f"Board with ID {board_id} not found for adding to favorites by user {user_id}")
+            raise HTTPException(status_code=404, detail="Board not found")
+        try:
+            await crud_add_to_favorite_boards(self.db, board_id, user_id)
+        except ValidationError as e:
+            self.logger.error(f"Validation error occurred while adding board {board_id} to favorites for user {user_id}: {e}")
+            raise HTTPException(status_code=422, detail="Invalid data for adding board to favorites")
+        except Exception as e:
+            self.logger.error(f"Error occurred while adding board {board_id} to favorites for user {user_id}: {e}")
+            raise HTTPException(status_code=500, detail="Failed to add board to favorites")
+        
 
-        return current_user
-
-    async def remove_from_favorites(self, board_id: str, current_user: User) -> User:
-        self.logger.info(f"Removing board {board_id} from favorites for user {current_user.id}")
-        board_to_remove = next((b for b in current_user.favorite_boards if b.id == board_id), None)
-
-        if not board_to_remove:
-            raise HTTPException(status_code=404, detail="Board not found in favorites")
-
-        current_user.favorite_boards.remove(board_to_remove)
-        await self._commit_and_refresh(current_user)
-
-        return current_user
+    async def remove_from_favorite_boards(self, board_id: str, user_id: str):
+        board = await get_board_by_id(self.db, board_id)
+        if not board:
+            self.logger.error(f"Board with ID {board_id} not found for removing from favorites by user {user_id}")
+            raise HTTPException(status_code=404, detail="Board not found")
+        try:
+            await crud_remove_from_favorite_boards(self.db, board_id, user_id)
+        except ValidationError as e:
+            self.logger.error(f"Validation error occurred while removing board {board_id} from favorites for user {user_id}: {e}")
+            raise HTTPException(status_code=422, detail="Invalid data for removing board from favorites")
+        except Exception as e:
+            self.logger.error(f"Error occurred while removing board {board_id} from favorites for user {user_id}: {e}")
+            raise HTTPException(status_code=500, detail="Failed to remove board from favorites")

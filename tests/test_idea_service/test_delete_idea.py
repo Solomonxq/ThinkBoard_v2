@@ -47,7 +47,7 @@ async def test_delete_idea_success(idea_service, mock_db, mock_idea):
         new=AsyncMock()
     ) as mock_delete:
 
-        await idea_service.delete_idea("idea-123", "user-123")
+        await idea_service.delete_idea("idea-123", "user-123", "board-123")
 
         mock_delete.assert_awaited_once_with(mock_db, "idea-123")
 
@@ -64,7 +64,7 @@ async def test_delete_idea_not_found(idea_service):
     ):
 
         with pytest.raises(HTTPException) as ex:
-            await idea_service.delete_idea("idea-123", "user-123")
+            await idea_service.delete_idea("idea-123", "user-123", "board-123")
 
         assert ex.value.status_code == 404
         assert ex.value.detail == "Idea not found"
@@ -85,7 +85,7 @@ async def test_delete_idea_not_in_board(idea_service, mock_idea):
     ):
 
         with pytest.raises(HTTPException) as ex:
-            await idea_service.delete_idea("idea-123", "user-123")
+            await idea_service.delete_idea("idea-123", "user-123", "board-123")
 
         assert ex.value.status_code == 404
         assert ex.value.detail == "Idea not found in the specified board"
@@ -109,7 +109,7 @@ async def test_delete_idea_not_owner(idea_service, mock_idea):
     ):
 
         with pytest.raises(HTTPException) as ex:
-            await idea_service.delete_idea("idea-123", "user-123")
+            await idea_service.delete_idea("idea-123", "user-123", "board-123")
 
         assert ex.value.status_code == 403
         assert ex.value.detail == "User is not the owner of the idea"

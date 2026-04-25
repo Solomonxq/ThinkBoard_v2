@@ -11,7 +11,7 @@ class BulkMemberRequest(BaseModel):
     user_ids: list[str]
 
 class BoardCreate(BaseModel):
-    board_name: str = Field(min_length=1, max_length=25)
+    board_name: str = Field(min_length=3, max_length=25)
     access: bool
     description: str = Field(min_length=1, max_length=500)
 

@@ -11,6 +11,7 @@ from app.api.v1.routers.idea import router as pidea_router
 
 router = APIRouter()
 
+
 @router.post('/create', response_model=BoardResponse)
 async def create_board_route(
     data: BoardCreate,
@@ -19,61 +20,49 @@ async def create_board_route(
 ):
     return await service.create_board(data, current_user.id)
 
-@router.post('/{board_id}/members/bulk-add', response_model=BoardResponse)
-async def bulk_add_members_route(
+
+@router.delete('/{board_id}', status_code=204)
+async def delete_board_route(
     board_id: str,
-    data: BulkMemberRequest,
     service: BoardService = Depends(get_board_service),
     current_user: User = Depends(get_current_user)
 ):
-    return await service.bulk_add_members(board_id, data.user_ids, current_user.id)
+    return await service.delete_board(board_id, current_user.id)
 
-@router.delete('/{board_id}/members/bulk-remove', response_model=BoardResponse)
-async def bulk_remove_members_route(
-    board_id: str,
-    data: BulkMemberRequest,
-    service: BoardService = Depends(get_board_service),
-    current_user: User = Depends(get_current_user)
-):
-    return await service.bulk_remove_members(board_id, data.user_ids, current_user.id)
-
-@router.post('/{board_id}/members', response_model=BoardResponse)
+@router.post('/{board_id}/add_member', status_code=200)
 async def add_member_route(
     board_id: str,
     data: AddMemberRequest,
     service: BoardService = Depends(get_board_service),
     current_user: User = Depends(get_current_user)
 ):
-    return await service.add_member(board_id, data.user_id, current_user.id)
+    await service.add_user_to_board(board_id, data.user_id, current_user.id)
+    return {"detail": "User added to board successfully"}
 
-@router.delete('/{board_id}/members/{user_id}', response_model=BoardResponse)
+@router.delete('/{board_id}/remove_member', status_code=200)
 async def remove_member_route(
     board_id: str,
-    user_id: str,
+    data: AddMemberRequest,
     service: BoardService = Depends(get_board_service),
     current_user: User = Depends(get_current_user)
 ):
-    return await service.remove_member(board_id, user_id, current_user.id)
+    await service.delete_user_from_board(board_id, data.user_id)
+    return {"detail": "User removed from board successfully"}
 
-
-@router.post('/{board_id}/favorite', response_model=UserResponse)
-async def add_favorite(
+@router.post('/{board_id}/add_members', status_code=200)
+async def add_members_route(
     board_id: str,
+    data: BulkMemberRequest,
     service: BoardService = Depends(get_board_service),
     current_user: User = Depends(get_current_user)
 ):
-    return await service.add_to_favorites(board_id, current_user)
-
-@router.delete('/{board_id}/favorite', response_model=UserResponse)
-async def remove_favorite(
-    board_id: str,
-    service: BoardService = Depends(get_board_service),
-    current_user: User = Depends(get_current_user)
-):
-    return await service.remove_from_favorites(board_id, current_user)
+    await service.add_users_to_board(board_id, data.user_ids)
+    return {"detail": "Users added to board successfully"}
 
 router.include_router(
     pidea_router,
     prefix='/{board_id}/ideas',
     tags=['ideas']
 )
+
+

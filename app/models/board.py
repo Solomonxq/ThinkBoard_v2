@@ -4,6 +4,7 @@ from app.db.base import Base
 from app.models.associations import board_members, user_favorite_boards
 from app.utils.uuid import generate_uuid
 from app.utils.time import utcnow
+from app.models.idea import Idea
 
 
 class Board(Base):
