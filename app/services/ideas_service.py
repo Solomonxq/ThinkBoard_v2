@@ -8,11 +8,11 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 
 class IdeaService:
-    def __init__(self, db):
+    def __init__(self, db: AsyncSession):
         self.db = db
         self.logger = setup_logging()
 
-    async def create_idea(self, data, user_id: str, board_id: str):
+    async def create_idea(self, data: IdeaCreate, user_id: str, board_id: str):
         existing_idea = await get_idea_by_title(self.db, data.title, board_id)
         if existing_idea:
             raise HTTPException(status_code=400, detail="Idea with this title already exists in the board")
