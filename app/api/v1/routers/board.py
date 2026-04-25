@@ -7,7 +7,7 @@ from app.api.deps import get_board_service
 from app.core.dependencies import get_current_user
 from app.models.user import User
 from app.schemas.user import UserResponse
-
+from app.api.v1.routers.idea import router as pidea_router
 
 router = APIRouter()
 
@@ -71,3 +71,9 @@ async def remove_favorite(
     current_user: User = Depends(get_current_user)
 ):
     return await service.remove_from_favorites(board_id, current_user)
+
+router.include_router(
+    pidea_router,
+    prefix='/{board_id}/ideas',
+    tags=['ideas']
+)

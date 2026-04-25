@@ -5,6 +5,7 @@ from app.services.auth_service import AuthService
 from app.services.board_service import BoardService
 from app.services.profile_service import ProfileService
 from app.services.oauth import OAuthService
+from app.services.ideas_service import IdeaService
 
 
 async def get_auth_service(db: AsyncSession = Depends(get_db)) -> AuthService:
@@ -21,3 +22,6 @@ async def get_profile_service(db: AsyncSession = Depends(get_db)) -> ProfileServ
 
 async def get_oauth_service(db: AsyncSession = Depends(get_db)) -> OAuthService:
     return OAuthService(db)
+
+async def get_idea_service(db: AsyncSession = Depends(get_db)) -> IdeaService:
+    return IdeaService(db)

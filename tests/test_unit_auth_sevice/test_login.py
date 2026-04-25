@@ -3,7 +3,7 @@ from app.services.auth_service import AuthService
 from app.schemas.user import UserLogin
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import HTTPException
-from pydantic import ValidationError
+
 
 @pytest.fixture
 def mock_db():
@@ -103,5 +103,3 @@ async def test_login_invalid_password(auth_service,mock_db):
 
         assert ex.value.status_code == 401
         assert ex.value.detail == "Invalid password"
-
-
