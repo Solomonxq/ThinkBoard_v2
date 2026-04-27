@@ -1,16 +1,17 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from app.models import board
 from app.models.board import Board
 from app.models.user import User
 from app.schemas.board import BoardCreate
+from app.crud.user import get_user_by_id
 
 
 
 
 
-async def create_board(db:AsyncSession,data: BoardCreate, owner_id:str) ->Board:
+
+async def create_board(db: AsyncSession, data: BoardCreate, owner_id: str) -> Board:
     board = Board(
         board_name=data.board_name,
         owner_id=owner_id,
@@ -18,9 +19,27 @@ async def create_board(db:AsyncSession,data: BoardCreate, owner_id:str) ->Board:
         description=data.description,
     )
     db.add(board)
-    await db.commit()
+    await db.flush()
 
-    return board
+    result = await db.execute(
+        select(Board)
+        .options(selectinload(Board.members))
+        .where(Board.id == board.id)
+    )
+    board = result.scalars().first()
+
+    owner_result = await db.execute(select(User).where(User.id == owner_id))
+    owner = owner_result.scalars().first()
+    if owner:
+        board.members.append(owner)
+
+    await db.commit()
+    result = await db.execute(
+        select(Board)
+        .options(selectinload(Board.members))
+        .where(Board.id == board.id)
+    )
+    return result.scalars().first()
 
 async def get_board_by_id(db: AsyncSession, board_id: str) -> Board | None:
     result = await db.execute(
@@ -45,7 +64,21 @@ async def is_owner(db: AsyncSession, user_id: str, board_id: str) -> bool:
     return result.scalars().first() is not None
 
 async def add_user_to_board(db: AsyncSession, board_id: str, user_id: str):
-    board.members.append(User(id=user_id))
+    result = await db.execute(
+        select(Board)
+        .options(selectinload(Board.members))
+        .where(Board.id == board_id)
+    )
+    board = result.scalars().first()
+    if not board:
+        return
+    
+    user_result = await db.execute(select(User).where(User.id == user_id))
+    user = user_result.scalars().first()
+    if not user:
+        return
+
+    board.members.append(user)
     await db.commit()
 
 async def delete_user_from_board(db: AsyncSession, board: Board, user_id: str):
@@ -58,10 +91,42 @@ async def delete_users_from_board(db: AsyncSession, board: Board, user_ids: list
     await db.commit()
 
 
-async def add_to_favorite_boards(db: AsyncSession, user: User, board_id: str):
-    user.favorite_boards.append(Board(id=board_id))
-    await db.commit()
+async def add_to_favorite_boards(
+    db: AsyncSession,
+    user_id: str,
+    board_id: str
+):
+    user = await get_user_by_id(db, user_id)
+    board = await get_board_by_id(db, board_id)
 
-async def remove_from_favorite_boards(db: AsyncSession, user: User, board_id: str):
-    user.favorite_boards = [board for board in user.favorite_boards if board.id != board_id]
+    if board not in user.favorite_boards:
+        user.favorite_boards.append(board)
+
     await db.commit()
+    await db.refresh(user)
+    return user
+
+async def remove_from_favorite_boards(
+    db: AsyncSession,
+    user_id: str,
+    board_id: str
+):
+    user = await get_user_by_id(db, user_id)
+
+    user.favorite_boards = [
+        board for board in user.favorite_boards
+        if board.id != board_id
+    ]
+
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+async def alredy_member_of_board(db: AsyncSession, user_id: str, board_id: str) -> bool:
+    result = await db.execute(
+        select(Board)
+        .join(Board.members)
+        .where(Board.id == board_id, User.id == user_id)
+    )
+    return result.scalars().first() is not None
+

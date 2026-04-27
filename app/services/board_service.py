@@ -10,12 +10,12 @@ from app.crud.board import (
     delete_user_from_board as crud_delete_user_from_board,
     delete_users_from_board as crud_delete_users_from_board,
     add_to_favorite_boards as crud_add_to_favorite_boards,
-    remove_from_favorite_boards as crud_remove_from_favorite_boards
+    remove_from_favorite_boards as crud_remove_from_favorite_boards,
+    alredy_member_of_board as crud_alredy_member_of_board
 )
 from app.crud.user import get_user_by_id
 from app.schemas.board import BoardCreate
 from app.models.board import Board
-from app.models.user import User
 from pydantic import ValidationError
 
 
@@ -53,15 +53,21 @@ class BoardService:
             raise HTTPException(status_code=500, detail="Failed to delete board")
 
 
-    async def add_user_to_board(self, board_id: str, user_id: str):
+    async def add_user_to_board(self, board_id: str, user_id: str,current_id:str):
         user = await get_user_by_id(self.db, user_id)
         if not user:
             self.logger.error(f"User with ID {user_id} not found for adding to board {board_id}")
             raise HTTPException(status_code=404, detail="User not found")
+        if not await is_owner(self.db,current_id,board_id):
+            self.logger.error(f"User:{current_id} not owner")
+            raise HTTPException(status_code=403,detail=f"User:{current_id} not owner")
         board = await get_board_by_id(self.db, board_id)
         if not board:
             self.logger.error(f"Board with ID {board_id} not found for adding user {user_id}")
             raise HTTPException(status_code=404, detail="Board not found")
+        if await crud_alredy_member_of_board(self.db, user_id, board_id):
+            self.logger.error(f"User {user_id} is already a member of board {board_id}")
+            raise HTTPException(status_code=400, detail="User is already a member of the board")
         try:
             await crud_add_user_to_board(self.db, board_id, user_id)
         except ValidationError as e:
@@ -104,19 +110,18 @@ class BoardService:
                 self.logger.error(f"Error occurred while adding user {user_id} to board {board_id}: {e}")
                 raise HTTPException(status_code=500, detail="Failed to add users to board")
             
-    async def delete_users_from_board(self, board_id: str, user_ids: list[str]):
+    async def delete_users_from_board(self, board_id: str, user_ids: list[str],owner_id):
         board = await get_board_by_id(self.db, board_id)
+        
         if not board:
             self.logger.error(f"Board with ID {board_id} not found for removing users {user_ids}")
             raise HTTPException(status_code=404, detail="Board not found")
-        try:
-            await crud_delete_users_from_board(self.db, board, user_ids)
-        except ValidationError as e:
-            self.logger.error(f"Validation error occurred while removing users {user_ids} from board {board_id}: {e}")
-            raise HTTPException(status_code=422, detail="Invalid data for removing users from board")
-        except Exception as e:
-            self.logger.error(f"Error occurred while removing users {user_ids} from board {board_id}: {e}")
-            raise HTTPException(status_code=500, detail="Failed to remove users from board")
+
+        for user_id in user_ids:
+            try:
+                await self.delete_user_from_board(board_id,user_id,owner_id)
+            except HTTPException as e:
+                self.logger.error(f"HTTP error occurred while delete user {user_id} to board {board_id}: {e.detail}")
         
     async def add_to_favorite_boards(self, board_id: str, user_id: str):
         board = await get_board_by_id(self.db, board_id)

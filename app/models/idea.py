@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, ForeignKey, DateTime
+from sqlalchemy import Column, String, ForeignKey, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from app.db.base import Base
 from app.utils.uuid import generate_uuid
@@ -29,6 +29,10 @@ class Idea(Base):
         nullable=False
     )
 
+
+    accepted = Column(Boolean,default=False,nullable=False)    
+    
+
     board = relationship(
         "Board",
         back_populates="ideas"
@@ -38,6 +42,13 @@ class Idea(Base):
         "User",
         back_populates="ideas"
     )
+    votes = relationship(
+        "Vote",
+        back_populates="idea",
+        cascade="all, delete-orphan"
+    )
+
+    
 
     __table_args__ = (
         UniqueConstraint("board_id", "title", name="uq_board_idea_title"),

@@ -52,6 +52,12 @@ class User(Base):
         passive_deletes=True
     )
 
+    votes = relationship(
+        "Vote",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
     @property
     def all_boards(self):
         return list(set(self.boards + self.member_of))

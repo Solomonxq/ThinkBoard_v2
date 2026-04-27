@@ -80,10 +80,8 @@ async def test_add_to_favorite_db_error(board_service, mock_db):
         new=AsyncMock(side_effect=Exception("DB error"))
     ):
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(HTTPException) as exc_info:
             await board_service.add_to_favorite_boards("board-123", "user-123")
 
         assert exc_info.value.status_code == 500
         assert exc_info.value.detail == "Failed to add board to favorites"
-
-

@@ -38,7 +38,7 @@ async def test_create_idea_success(idea_service):
     mock_idea.user_id = user_id
 
     with patch("app.services.ideas_service.get_idea_by_title", AsyncMock(return_value=None)), \
-         patch("app.services.ideas_service.user_member_of_board", AsyncMock(return_value=True)), \
+         patch("app.services.ideas_service.alredy_member_of_board", AsyncMock(return_value=True)), \
          patch("app.services.ideas_service.create_idea_crud", AsyncMock(return_value=mock_idea)):
 
         result = await idea_service.create_idea(data, user_id, board_id)
@@ -73,7 +73,7 @@ async def test_create_idea_user_not_member(idea_service):
     data = IdeaCreate(title="Test Idea", description="Test")
 
     with patch("app.services.ideas_service.get_idea_by_title", AsyncMock(return_value=None)), \
-         patch("app.services.ideas_service.user_member_of_board", AsyncMock(return_value=False)):
+         patch("app.services.ideas_service.alredy_member_of_board", AsyncMock(return_value=False)):
 
         with pytest.raises(HTTPException) as ex:
             await idea_service.create_idea(data, "user-1", "board-1")
@@ -85,8 +85,9 @@ async def test_create_idea_user_not_member(idea_service):
 # =====================================================
 # VALIDATION ERROR (Pydantic)
 # =====================================================
+
 def test_create_idea_invalid_title():
     with pytest.raises(ValidationError) as ex:
         IdeaCreate(title="ab", description="test")
-        assert ex.value.status_code == 422
-        assert "ensure this value has at least 3 characters" in str(ex.value)
+    
+    assert "string should have at least 3 characters" in str(ex.value).lower()

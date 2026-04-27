@@ -1,8 +1,9 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.logging import setup_logging
-from app.crud.idea import( create_idea as create_idea_crud ,get_idea_by_title, user_member_of_board,
+from app.crud.idea import( create_idea as create_idea_crud ,get_idea_by_title,
     delete_idea as delete_idea_crud, owner_of_idea,
     get_idea_by_id, check_idea_in_board)
+from app.crud.board import alredy_member_of_board
 from app.schemas.idea import IdeaCreate
 from fastapi import HTTPException
 from pydantic import ValidationError
@@ -18,7 +19,7 @@ class IdeaService:
             self.logger.error(f"Idea with title '{data.title}' already exists in board {board_id}")
             raise HTTPException(status_code=400, detail="Idea with this title already exists in the board")
 
-        member_chek = await user_member_of_board(self.db, user_id, board_id)
+        member_chek = await alredy_member_of_board(self.db,user_id,board_id)   
         if not member_chek:
             self.logger.error(f"User {user_id} is not a member of board {board_id}")
             raise HTTPException(status_code=403, detail="User is not a member of the board")
@@ -37,7 +38,7 @@ class IdeaService:
         if not idea:
             self.logger.error(f"Idea with ID {idea_id} not found for deletion")
             raise HTTPException(status_code=404, detail="Idea not found")
-        if not await check_idea_in_board(self.db, idea_id, idea.board_id):
+        if not await check_idea_in_board(self.db, idea_id, board_id):
             self.logger.error(f"Idea with ID {idea_id} not found in the specified board")
             raise HTTPException(status_code=404, detail="Idea not found in the specified board")
         if not await owner_of_idea(self.db, user_id, idea_id):

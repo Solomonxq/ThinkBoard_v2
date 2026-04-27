@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 
-async def create_idea(db: AsyncSession, data: IdeaCreate,board_id: str, user_id: str) -> Idea   :
+async def create_idea(db: AsyncSession, data: IdeaCreate,user_id: str, board_id: str) -> Idea   :
     idea = Idea(
         title=data.title,
         description=data.description,
@@ -22,12 +22,7 @@ async def get_idea_by_title(db: AsyncSession, title: str, board_id: str) -> Idea
     result = await db.execute(select(Idea).where(and_(Idea.board_id == board_id, Idea.title == title)))
     return result.scalars().first()
 
-async def user_member_of_board(db:AsyncSession,user_id:str,board_id:str) -> bool:
-    result = await db.execute(
-        select(Idea)
-        .where(and_(Idea.board_id == board_id, Idea.user_id == user_id))
-    )
-    return result.scalars().first() is not None
+
 
 async def owner_of_idea(db:AsyncSession,user_id:str,idea_id:str) -> bool:
     result = await db.execute(

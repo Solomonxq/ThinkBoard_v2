@@ -11,5 +11,6 @@ class IdeaResponse(BaseModel):
     created_at: datetime
     board_id: str
     user_id: str
+    
 
     model_config = {"from_attributes": True}

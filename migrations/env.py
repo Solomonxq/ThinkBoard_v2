@@ -8,7 +8,7 @@ from alembic import context
 from app.core.config import settings
 from app.db.base import Base
 
-
+from app.models.vote import Vote
 from app.models.user import User  
 from app.models.board import Board
 from app.models.idea import Idea

@@ -64,10 +64,14 @@ async def test_register_shord_username(auth_service,mock_db):
 
 
 @pytest.mark.asyncio
-async def test_register_incorrect_email(auth_service,mock_db):
+async def test_register_incorrect_email(auth_service, mock_db):
     with pytest.raises(ValidationError) as ex:
         UserCreate(
             email="ass",
             username="asdas",
             password="sadasdsad"
         )
+
+    errors = ex.value.errors()
+    assert errors[0]["loc"] == ("email",)
+    assert errors[0]["type"] == "value_error"

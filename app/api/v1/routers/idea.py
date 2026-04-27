@@ -18,6 +18,7 @@ async def create_idea_route(
 
 @router.delete('/delete/{idea_id}')
 async def delete_idea_route(
+    board_id: str,
     idea_id: str,
     service: IdeaService = Depends(get_idea_service),
     current_user: User = Depends(get_current_user),
