@@ -33,4 +33,5 @@ async def update_vote(db: AsyncSession, user_id: str, idea_id: str, status: bool
 
     vote.status = status
     await db.commit()
-    await db.refres
+    await db.refresh(vote)
+    return vote

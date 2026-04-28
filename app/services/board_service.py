@@ -99,10 +99,10 @@ class BoardService:
             self.logger.error(f"Error occurred while removing user {user_id} from board {board_id}: {e}")
             raise HTTPException(status_code=500, detail="Failed to remove user from board")
         
-    async def add_users_to_board(self,board_id:str, user_ids:list[str]):
+    async def add_users_to_board(self,board_id:str, user_ids:list[str],current_id:str):
         for user_id in user_ids:
             try:
-                await self.add_user_to_board(board_id, user_id)
+                await self.add_user_to_board(board_id, user_id,current_id)
             except HTTPException as e:
                 self.logger.error(f"HTTP error occurred while adding user {user_id} to board {board_id}: {e.detail}")
                 raise e
@@ -116,20 +116,19 @@ class BoardService:
         if not board:
             self.logger.error(f"Board with ID {board_id} not found for removing users {user_ids}")
             raise HTTPException(status_code=404, detail="Board not found")
-
-        for user_id in user_ids:
-            try:
-                await self.delete_user_from_board(board_id,user_id,owner_id)
-            except HTTPException as e:
-                self.logger.error(f"HTTP error occurred while delete user {user_id} to board {board_id}: {e.detail}")
+        try:
+            for user_id in user_ids:
+                    await self.delete_user_from_board(board_id,user_id,owner_id)
+        except HTTPException as e:
+            self.logger.error(f"HTTP error occurred while delete user {user_id} to board {board_id}: {e.detail}")
         
-    async def add_to_favorite_boards(self, board_id: str, user_id: str):
+    async def add_to_favorite_boards(self, user_id: str, board_id: str):
         board = await get_board_by_id(self.db, board_id)
         if not board:
             self.logger.error(f"Board with ID {board_id} not found for adding to favorites by user {user_id}")
             raise HTTPException(status_code=404, detail="Board not found")
         try:
-            await crud_add_to_favorite_boards(self.db, board_id, user_id)
+            await crud_add_to_favorite_boards(self.db, user_id, board_id)
         except ValidationError as e:
             self.logger.error(f"Validation error occurred while adding board {board_id} to favorites for user {user_id}: {e}")
             raise HTTPException(status_code=422, detail="Invalid data for adding board to favorites")
@@ -144,7 +143,7 @@ class BoardService:
             self.logger.error(f"Board with ID {board_id} not found for removing from favorites by user {user_id}")
             raise HTTPException(status_code=404, detail="Board not found")
         try:
-            await crud_remove_from_favorite_boards(self.db, board_id, user_id)
+            await crud_remove_from_favorite_boards(self.db, user_id, board_id)
         except ValidationError as e:
             self.logger.error(f"Validation error occurred while removing board {board_id} from favorites for user {user_id}: {e}")
             raise HTTPException(status_code=422, detail="Invalid data for removing board from favorites")

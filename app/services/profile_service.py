@@ -8,6 +8,8 @@ from app.core.logging import setup_logging
 from app.models.user import User
 from app.crud.user import update_user_profile, get_user_by_username
 from app.schemas.user import UpdateProfileRequest
+from PIL import Image
+import io
 
 UPLOAD_DIR = "/app/uploads/avatars"
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
@@ -32,14 +34,33 @@ class ProfileService:
         return await update_user_profile(self.db, user, update_data)
 
     async def upload_avatar(self, user: User, file: UploadFile) -> User:
-        if file.content_type not in self.allowed_types:
-            raise HTTPException(status_code=400, detail="Only JPEG, PNG, WEBP allowed")
-
         contents = await file.read()
+
         if len(contents) > self.max_size:
             raise HTTPException(status_code=400, detail="File too large. Max 5MB")
 
-        ext = file.filename.split(".")[-1]
+        try:
+            image = Image.open(io.BytesIO(contents))
+            image.verify()
+            format = image.format.upper()
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid image file")
+
+        allowed_formats = {"JPEG", "PNG", "WEBP"}
+        if format not in allowed_formats:
+            raise HTTPException(
+                status_code=400,
+                detail="Only JPEG, PNG, WEBP allowed"
+            )
+
+        ext_map = {
+            "JPEG": "jpg",
+            "PNG": "png",
+            "WEBP": "webp"
+        }
+
+        ext = ext_map[format]
+
         filename = f"{uuid.uuid4()}.{ext}"
         filepath = os.path.join(self.upload_dir, filename)
 
@@ -47,9 +68,14 @@ class ProfileService:
             f.write(contents)
 
         avatar_url = f"/uploads/avatars/{filename}"
-        self.logger.info(f"Avatar uploaded for user {user.id}: {avatar_url}")
-        return await update_user_profile(self.db, user, {"avatar_url": avatar_url})
 
+        self.logger.info(f"Avatar uploaded for user {user.id}: {avatar_url}")
+
+        return await update_user_profile(
+            self.db,
+            user,
+            {"avatar_url": avatar_url}
+        )
     async def get_public_profile(self, username: str) -> dict:
         result = await self.db.execute(
             select(User)

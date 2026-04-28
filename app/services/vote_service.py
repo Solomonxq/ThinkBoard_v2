@@ -4,10 +4,9 @@ from fastapi import HTTPException , status
 
 from app.core.logging import setup_logging
 
-from app.models.vote import Vote
-from app.schemas.vote import VoteCreate
+
 from app.utils.time import utcnow
-from app.crud.vote import get_vote, create_vote, update_vote,check_status
+from app.crud.vote import get_vote, create_vote, update_vote
 from app.crud.idea import user_member_of_board
 from pydantic import ValidationError
 class VoteService:

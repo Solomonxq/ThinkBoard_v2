@@ -52,7 +52,7 @@ async def test_register_short_password(auth_service,mock_db):
     assert "password" in str(ex.value)
 
 @pytest.mark.asyncio
-async def test_register_shord_username(auth_service,mock_db):
+async def test_register_short_username(auth_service,mock_db):
     with pytest.raises(ValidationError) as ex:
         UserCreate(
             email="eqdsasd@sad.com",

@@ -20,7 +20,7 @@ from app.core.dependencies import get_current_user
 from app.core.security import hash_password
 from app.models.user import User
 
-from app.core.limiter import limiter   # ✅ FIXED
+from app.core.limiter import limiter   
 
 
 router = APIRouter()
@@ -38,14 +38,14 @@ async def google_login(
 
     response = RedirectResponse(url=auth_url)
     
-    response.delete_cookie("oauth_state")  # ✅ видаляємо стару
+    response.delete_cookie("oauth_state")  
     response.set_cookie(
         key="oauth_state",
         value=state,
         httponly=True,
         max_age=600,
         samesite="lax",
-        secure=False,  # ✅ для локального HTTP
+        secure=False,  
     )
     return response
 
