@@ -29,3 +29,38 @@ dependencies = [
 
 [tool.setuptools.packages.find]
 exclude = ["migrations*"]
+
+
+
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.6",
+]
+
+[tool.ruff]
+src = ["app"]
+line-length = 88
+
+target-version = "py311"
+
+[tool.ruff.lint]
+
+select = ["E", "W", "F", "I", "B", "UP"]
+ignore = ["E501"]
+
+fixable = ["ALL"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+exclude = [
+    ".venv",
+    "venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "migrations",
+    "tests",
+]

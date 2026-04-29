@@ -1,5 +1,6 @@
+from app.schemas.common import UserShort
 from pydantic import BaseModel, Field
-from app.schemas.common import UserShort, BoardShort
+
 
 class AddMemberRequest(BaseModel):
     user_id: str

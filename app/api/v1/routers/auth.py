@@ -1,27 +1,23 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from fastapi.responses import RedirectResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.db.session import get_db
-from app.schemas.user import (
-    UserCreate,
-    UserResponse,
-    UserLogin,
-    TokenResponse,
-    RefreshRequest,
-    SetPasswordRequest,
-    RegisterResponse
-)
-
-from app.services.auth_service import AuthService
-from app.services.oauth import OAuthService
 from app.api.deps import get_auth_service, get_oauth_service
 from app.core.dependencies import get_current_user
+from app.core.limiter import limiter
 from app.core.security import hash_password
+from app.db.session import get_db
 from app.models.user import User
-
-from app.core.limiter import limiter   
-
+from app.schemas.user import (
+    RefreshRequest,
+    RegisterResponse,
+    SetPasswordRequest,
+    TokenResponse,
+    UserCreate,
+    UserLogin,
+    UserResponse,
+)
+from app.services.auth_service import AuthService
+from app.services.oauth import OAuthService
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import RedirectResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
@@ -37,15 +33,15 @@ async def google_login(
     auth_url = service.get_google_auth_url(state)
 
     response = RedirectResponse(url=auth_url)
-    
-    response.delete_cookie("oauth_state")  
+
+    response.delete_cookie("oauth_state")
     response.set_cookie(
         key="oauth_state",
         value=state,
         httponly=True,
         max_age=600,
         samesite="lax",
-        secure=False,  
+        secure=False,
     )
     return response
 
@@ -60,8 +56,8 @@ async def google_callback(
     service: OAuthService = Depends(get_oauth_service)
 ):
     stored_state = request.cookies.get("oauth_state")
-    
-    
+
+
     return await service.login_or_register(
         code=code,
         state=state,

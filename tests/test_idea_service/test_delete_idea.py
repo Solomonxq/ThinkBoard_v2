@@ -1,8 +1,8 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from fastapi import HTTPException
 
+import pytest
 from app.services.ideas_service import IdeaService
+from fastapi import HTTPException
 
 
 # -------------------------

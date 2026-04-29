@@ -1,8 +1,8 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from fastapi import HTTPException
-from pydantic import ValidationError
+
+import pytest
 from app.services.board_service import BoardService
+from fastapi import HTTPException
 
 
 # -------------------------

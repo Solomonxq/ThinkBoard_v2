@@ -1,13 +1,14 @@
 import secrets
-import httpx
 from urllib.parse import urlencode
+
+import httpx
+from app.core.config import settings
+from app.core.logging import setup_logging
+from app.core.security import create_refresh_token, create_token, hash_password
+from app.crud.user import get_user_by_username, get_user_email
+from app.models.user import User
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.security import create_token, create_refresh_token, hash_password
-from app.core.logging import setup_logging
-from app.crud.user import get_user_email, get_user_by_username  # ✅ додано імпорт
-from app.models.user import User
-from app.core.config import settings
 
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
@@ -92,11 +93,11 @@ class OAuthService:
 
         if not user:
             base_username = user_info.get("name", email.split("@")[0])
-            unique_username = await self._generate_unique_username(base_username)  # ✅
+            unique_username = await self._generate_unique_username(base_username)
 
             user = User(
                 email=email,
-                username=unique_username,  
+                username=unique_username,
                 password=None,
                 oauth_provider="google",
                 oauth_id=user_info.get("id"),

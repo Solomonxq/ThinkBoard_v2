@@ -1,11 +1,15 @@
-from fastapi import APIRouter, Depends
-from app.schemas.board import BoardCreate, BoardResponse, AddMemberRequest, BulkMemberRequest
-from app.services.board_service import BoardService
 from app.api.deps import get_board_service
+from app.api.v1.routers.idea import router as idea_router
 from app.core.dependencies import get_current_user
 from app.models.user import User
-
-from app.api.v1.routers.idea import router as idea_router
+from app.schemas.board import (
+    AddMemberRequest,
+    BoardCreate,
+    BoardResponse,
+    BulkMemberRequest,
+)
+from app.services.board_service import BoardService
+from fastapi import APIRouter, Depends
 
 router = APIRouter()
 

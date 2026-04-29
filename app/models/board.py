@@ -1,10 +1,9 @@
-from sqlalchemy import Column, String, ForeignKey, Boolean, DateTime
-from sqlalchemy.orm import relationship
 from app.db.base import Base
 from app.models.associations import board_members, user_favorite_boards
-from app.utils.uuid import generate_uuid
 from app.utils.time import utcnow
-from app.models.idea import Idea
+from app.utils.uuid import generate_uuid
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String
+from sqlalchemy.orm import relationship
 
 
 class Board(Base):
@@ -48,4 +47,4 @@ class Board(Base):
         passive_deletes=True
     )
 
-    
+

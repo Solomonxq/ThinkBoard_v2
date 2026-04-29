@@ -1,9 +1,8 @@
-from sqlalchemy import Column, String, ForeignKey, DateTime, Boolean
-from sqlalchemy.orm import relationship
 from app.db.base import Base
-from app.utils.uuid import generate_uuid
 from app.utils.time import utcnow
-from sqlalchemy import UniqueConstraint
+from app.utils.uuid import generate_uuid
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, UniqueConstraint
+from sqlalchemy.orm import relationship
 
 
 class Idea(Base):
@@ -29,9 +28,11 @@ class Idea(Base):
         nullable=False
     )
 
+    voting_ends_at = Column(DateTime(timezone=True), nullable=True)
 
-    accepted = Column(Boolean,default=False,nullable=False)    
-    
+
+    accepted = Column(Boolean,default=False,nullable=False)
+
 
     board = relationship(
         "Board",
@@ -48,7 +49,7 @@ class Idea(Base):
         cascade="all, delete-orphan"
     )
 
-    
+
 
     __table_args__ = (
         UniqueConstraint("board_id", "title", name="uq_board_idea_title"),

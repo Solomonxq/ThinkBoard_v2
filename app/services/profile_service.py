@@ -1,15 +1,16 @@
-import uuid
+import io
 import os
+import uuid
+
+from app.core.logging import setup_logging
+from app.crud.user import update_user_profile
+from app.models.user import User
+from app.schemas.user import UpdateProfileRequest
 from fastapi import HTTPException, UploadFile
+from PIL import Image
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from app.core.logging import setup_logging
-from app.models.user import User
-from app.crud.user import update_user_profile, get_user_by_username
-from app.schemas.user import UpdateProfileRequest
-from PIL import Image
-import io
 
 UPLOAD_DIR = "/app/uploads/avatars"
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}

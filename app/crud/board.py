@@ -1,14 +1,10 @@
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from app.crud.user import get_user_by_id
 from app.models.board import Board
 from app.models.user import User
 from app.schemas.board import BoardCreate
-from app.crud.user import get_user_by_id
-
-
-
-
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 
 async def create_board(db: AsyncSession, data: BoardCreate, owner_id: str) -> Board:
@@ -72,7 +68,7 @@ async def add_user_to_board(db: AsyncSession, board_id: str, user_id: str):
     board = result.scalars().first()
     if not board:
         return
-    
+
     user_result = await db.execute(select(User).where(User.id == user_id))
     user = user_result.scalars().first()
     if not user:

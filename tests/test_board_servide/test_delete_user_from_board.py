@@ -1,7 +1,10 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from fastapi import HTTPException
+
+import pytest
 from app.services.board_service import BoardService
+from fastapi import HTTPException
+
+
 # -------------------------
 # FIXTURES
 # -------------------------
@@ -43,7 +46,7 @@ async def test_delete_user_from_board_success(board_service, mock_db):
             mock_board,
             "user-456"
         )
-    
+
 # -------------------------
 # USER NOT FOUND
 # -------------------------

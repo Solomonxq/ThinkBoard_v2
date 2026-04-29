@@ -1,22 +1,20 @@
-from fastapi import HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.logging import setup_logging
+from app.crud.board import add_to_favorite_boards as crud_add_to_favorite_boards
+from app.crud.board import add_user_to_board as crud_add_user_to_board
+from app.crud.board import alredy_member_of_board as crud_alredy_member_of_board
+from app.crud.board import create_board as crud_create_board
+from app.crud.board import delete_board as crud_delete_board
+from app.crud.board import delete_user_from_board as crud_delete_user_from_board
+from app.crud.board import get_board_by_id, is_owner
 from app.crud.board import (
-    get_board_by_id,
-    create_board as crud_create_board,
-    is_owner,
-    delete_board as crud_delete_board,
-    add_user_to_board as crud_add_user_to_board,
-    delete_user_from_board as crud_delete_user_from_board,
-    delete_users_from_board as crud_delete_users_from_board,
-    add_to_favorite_boards as crud_add_to_favorite_boards,
     remove_from_favorite_boards as crud_remove_from_favorite_boards,
-    alredy_member_of_board as crud_alredy_member_of_board
 )
 from app.crud.user import get_user_by_id
-from app.schemas.board import BoardCreate
 from app.models.board import Board
+from app.schemas.board import BoardCreate
+from fastapi import HTTPException
 from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class BoardService:
@@ -76,7 +74,7 @@ class BoardService:
         except Exception as e:
             self.logger.error(f"Error occurred while adding user {user_id} to board {board_id}: {e}")
             raise HTTPException(status_code=500, detail="Failed to add user to board")
-        
+
     async def delete_user_from_board(self, board_id: str, user_id: str,owner_id:str):
         owner = await is_owner(self.db, owner_id, board_id)
         if not owner:
@@ -98,7 +96,7 @@ class BoardService:
         except Exception as e:
             self.logger.error(f"Error occurred while removing user {user_id} from board {board_id}: {e}")
             raise HTTPException(status_code=500, detail="Failed to remove user from board")
-        
+
     async def add_users_to_board(self,board_id:str, user_ids:list[str],current_id:str):
         for user_id in user_ids:
             try:
@@ -109,10 +107,10 @@ class BoardService:
             except Exception as e:
                 self.logger.error(f"Error occurred while adding user {user_id} to board {board_id}: {e}")
                 raise HTTPException(status_code=500, detail="Failed to add users to board")
-            
+
     async def delete_users_from_board(self, board_id: str, user_ids: list[str],owner_id):
         board = await get_board_by_id(self.db, board_id)
-        
+
         if not board:
             self.logger.error(f"Board with ID {board_id} not found for removing users {user_ids}")
             raise HTTPException(status_code=404, detail="Board not found")
@@ -121,7 +119,7 @@ class BoardService:
                     await self.delete_user_from_board(board_id,user_id,owner_id)
         except HTTPException as e:
             self.logger.error(f"HTTP error occurred while delete user {user_id} to board {board_id}: {e.detail}")
-        
+
     async def add_to_favorite_boards(self, user_id: str, board_id: str):
         board = await get_board_by_id(self.db, board_id)
         if not board:
@@ -135,7 +133,7 @@ class BoardService:
         except Exception as e:
             self.logger.error(f"Error occurred while adding board {board_id} to favorites for user {user_id}: {e}")
             raise HTTPException(status_code=500, detail="Failed to add board to favorites")
-        
+
 
     async def remove_from_favorite_boards(self, board_id: str, user_id: str):
         board = await get_board_by_id(self.db, board_id)

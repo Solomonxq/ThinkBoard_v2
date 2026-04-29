@@ -1,9 +1,20 @@
-from fastapi import HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.security import verify_password, create_token, create_refresh_token, hash_password, decode_refresh_token
 from app.core.logging import setup_logging
-from app.crud.user import get_user_email, get_user_by_username, create_user, get_user_by_id
+from app.core.security import (
+    create_refresh_token,
+    create_token,
+    decode_refresh_token,
+    hash_password,
+    verify_password,
+)
+from app.crud.user import (
+    create_user,
+    get_user_by_id,
+    get_user_by_username,
+    get_user_email,
+)
 from app.schemas.user import UserCreate, UserLogin
+from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class AuthService:
@@ -36,22 +47,22 @@ class AuthService:
         user = await get_user_email(self.db, data.email)
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
-        
+
         if not user.password:
             raise HTTPException(
-                status_code=400, 
+                status_code=400,
                 detail="This account uses Google login"
             )
-        
+
         if not verify_password(data.password, user.password):
             raise HTTPException(status_code=401, detail="Invalid password")
-        
+
         access_token = create_token({"sub": str(user.id), "email": user.email})
         refresh_token = create_refresh_token({"sub": str(user.id), "email": user.email})
         user.refresh_token = hash_password(refresh_token)
         await self.db.commit()
         self.logger.info(f"User logged in: {user.email}")
-        
+
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,

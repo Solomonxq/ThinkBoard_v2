@@ -1,8 +1,8 @@
-from sqlalchemy import Column, String, ForeignKey, DateTime, Boolean, UniqueConstraint
-from sqlalchemy.orm import relationship
 from app.db.base import Base
-from app.utils.uuid import generate_uuid
 from app.utils.time import utcnow
+from app.utils.uuid import generate_uuid
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, UniqueConstraint
+from sqlalchemy.orm import relationship
 
 
 class Vote(Base):

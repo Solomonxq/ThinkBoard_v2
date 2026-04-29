@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class UserShort(BaseModel):
     id: str
     username: str

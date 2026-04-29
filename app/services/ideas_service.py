@@ -1,12 +1,18 @@
-from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.logging import setup_logging
-from app.crud.idea import( create_idea as create_idea_crud ,get_idea_by_title,
-    delete_idea as delete_idea_crud, owner_of_idea,
-    get_idea_by_id, check_idea_in_board)
 from app.crud.board import alredy_member_of_board
+from app.crud.idea import (
+    check_idea_in_board,
+    get_idea_by_id,
+    get_idea_by_title,
+    owner_of_idea,
+)
+from app.crud.idea import create_idea as create_idea_crud
+from app.crud.idea import delete_idea as delete_idea_crud
 from app.schemas.idea import IdeaCreate
 from fastapi import HTTPException
 from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession
+
 
 class IdeaService:
     def __init__(self, db: AsyncSession):
@@ -16,32 +22,32 @@ class IdeaService:
     async def create_idea(self, data: IdeaCreate, user_id: str, board_id: str):
         existing_idea = await get_idea_by_title(self.db, data.title, board_id)
         if existing_idea:
-            self.logger.error(f"Idea with title '{data.title}' already exists in board {board_id}")
+            self.logger.error(f"Idea '{data.title}' already exists in board {board_id}")
             raise HTTPException(status_code=400, detail="Idea with this title already exists in the board")
 
-        member_chek = await alredy_member_of_board(self.db,user_id,board_id)   
-        if not member_chek:
+        if not await alredy_member_of_board(self.db, user_id, board_id):
             self.logger.error(f"User {user_id} is not a member of board {board_id}")
             raise HTTPException(status_code=403, detail="User is not a member of the board")
 
-        self.logger.info(
-            f"Creating idea '{data.title}' for user {user_id} in board {board_id}"
-        )
+        self.logger.info(f"Creating idea '{data.title}' for user {user_id} in board {board_id}")
         try:
             return await create_idea_crud(self.db, data, user_id, board_id)
         except ValidationError as ve:
             self.logger.error(f"Validation error while creating idea: {ve}")
-            raise HTTPException(status_code=422, detail=str(ve))    
+            raise HTTPException(status_code=422, detail=str(ve))
 
     async def delete_idea(self, idea_id: str, user_id: str, board_id: str):
         idea = await get_idea_by_id(self.db, idea_id)
         if not idea:
-            self.logger.error(f"Idea with ID {idea_id} not found for deletion")
+            self.logger.error(f"Idea {idea_id} not found")
             raise HTTPException(status_code=404, detail="Idea not found")
+
         if not await check_idea_in_board(self.db, idea_id, board_id):
-            self.logger.error(f"Idea with ID {idea_id} not found in the specified board")
+            self.logger.error(f"Idea {idea_id} not in board {board_id}")
             raise HTTPException(status_code=404, detail="Idea not found in the specified board")
+
         if not await owner_of_idea(self.db, user_id, idea_id):
-            self.logger.error(f"User {user_id} is not the owner of idea {idea_id}")
+            self.logger.error(f"User {user_id} is not owner of idea {idea_id}")
             raise HTTPException(status_code=403, detail="User is not the owner of the idea")
+
         await delete_idea_crud(self.db, idea_id)

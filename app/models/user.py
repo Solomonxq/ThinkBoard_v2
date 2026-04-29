@@ -1,9 +1,9 @@
-from sqlalchemy import Column, String, Boolean, DateTime
-from sqlalchemy.orm import relationship
 from app.db.base import Base
 from app.models.associations import board_members, user_favorite_boards
-from app.utils.uuid import generate_uuid
 from app.utils.time import utcnow
+from app.utils.uuid import generate_uuid
+from sqlalchemy import Boolean, Column, DateTime, String
+from sqlalchemy.orm import relationship
 
 
 class User(Base):

@@ -1,5 +1,6 @@
-from pydantic import BaseModel, EmailStr, Field
 from app.schemas.common import BoardShort
+from pydantic import BaseModel, EmailStr, Field
+
 
 class UserCreate(BaseModel):
     email: EmailStr

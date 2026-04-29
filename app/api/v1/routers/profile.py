@@ -1,11 +1,9 @@
-from fastapi import APIRouter, Depends, UploadFile, File
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.session import get_db
+from app.api.deps import get_profile_service
 from app.core.dependencies import get_current_user
 from app.models.user import User
-from app.schemas.user import UserResponse, UserPublicResponse, UpdateProfileRequest
+from app.schemas.user import UpdateProfileRequest, UserPublicResponse, UserResponse
 from app.services.profile_service import ProfileService
-from app.api.deps import get_profile_service
+from fastapi import APIRouter, Depends, File, UploadFile
 
 router = APIRouter()
 

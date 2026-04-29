@@ -1,10 +1,10 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+from app.schemas.idea import IdeaCreate
+from app.services.ideas_service import IdeaService
 from fastapi import HTTPException
 from pydantic import ValidationError
-
-from app.services.ideas_service import IdeaService
-from app.schemas.idea import IdeaCreate
 
 
 # -------------------------
@@ -89,5 +89,5 @@ async def test_create_idea_user_not_member(idea_service):
 def test_create_idea_invalid_title():
     with pytest.raises(ValidationError) as ex:
         IdeaCreate(title="ab", description="test")
-    
+
     assert "string should have at least 3 characters" in str(ex.value).lower()
