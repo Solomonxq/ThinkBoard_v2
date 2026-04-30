@@ -4,7 +4,7 @@ services:
     container_name: thinkboard_db
     restart: always
     env_file:
-      - .env  
+      - .env
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -19,6 +19,18 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:  # 👈 новий сервіс
+    image: redis:7-alpine
+    container_name: thinkboard_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   backend:
     build: .
     container_name: thinkboard_api
@@ -26,18 +38,20 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:  # 👈 додай
+        condition: service_healthy
     env_file:
-      - .env  
+      - .env
     environment:
       - DATABASE_URL=postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@db:${DB_PORT}/${DB_NAME}
       - DB_HOST=db
+      - REDIS_URL=redis://redis:6379  # 👈 додай
     ports:
       - "8000:8000"
     volumes:
       - .:/app
-    
-    command: 
-      sh -c "uv run alembic upgrade head && 
+    command:
+      sh -c "uv run alembic upgrade head &&
              uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 
 volumes:

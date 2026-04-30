@@ -11,6 +11,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
+from app.core.redis import connect_redis, disconnect_redis
 
 logger = setup_logging()
 
@@ -23,8 +24,11 @@ limiter = Limiter(key_func=get_remote_address)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Application startup")
+    await connect_redis()
     yield
+    await disconnect_redis()
     logger.info("Application shutdown")
+    
 
 
 app = FastAPI(lifespan=lifespan)

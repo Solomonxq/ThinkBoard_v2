@@ -4,9 +4,6 @@ import pytest
 from app.services.vote_service import VoteService
 from fastapi import HTTPException, WebSocket
 
-# -------------------------
-# FIXTURES
-# -------------------------
 
 @pytest.fixture
 def db():
@@ -25,32 +22,22 @@ def websocket():
     return ws
 
 
-# -------------------------
-# AUTH TESTS
-# -------------------------
-
 def test_authorize_valid_token(service):
     with patch("app.services.vote_service.decode_token", return_value={"sub": "user1"}):
-        user_id = service.authorize("token")
-        assert user_id == "user1"
+        assert service.authorize("token") == "user1"
 
 
 def test_authorize_invalid_token(service):
     with patch("app.services.vote_service.decode_token", return_value=None):
-        user_id = service.authorize("bad")
-        assert user_id is None
+        assert service.authorize("bad") is None
 
 
 def test_authorize_no_token(service):
     assert service.authorize(None) is None
 
 
-# -------------------------
-# INIT STATE TEST
-# -------------------------
-
 @pytest.mark.asyncio
-async def test_get_init_state_404(service, db):
+async def test_get_init_state_404(service):
     with patch("app.services.vote_service.get_idea_by_id", new=AsyncMock(return_value=None)):
         with pytest.raises(HTTPException) as exc:
             await service.get_init_state("idea1")
@@ -58,82 +45,160 @@ async def test_get_init_state_404(service, db):
 
 
 @pytest.mark.asyncio
-async def test_get_init_state_ok(service, db):
+async def test_get_init_state_ok(service):
     fake_idea = MagicMock()
     fake_idea.voting_ends_at = None
     fake_idea.accepted = False
 
-    with patch("app.services.vote_service.get_idea_by_id", new=AsyncMock(return_value=fake_idea)):
-        with patch("app.services.vote_service.get_vote_counts", new=AsyncMock(return_value={"approve": 2, "reject": 1})):
-            result = await service.get_init_state("idea1")
+    with patch("app.services.vote_service.get_idea_by_id", new=AsyncMock(return_value=fake_idea)), \
+         patch("app.services.vote_service.get_vote_counts", new=AsyncMock(return_value={"approve": 2, "reject": 1})):
 
-            assert result["event"] == "init"
-            assert result["approve"] == 2
-            assert result["reject"] == 1
+        result = await service.get_init_state("idea1")
 
+    assert result["event"] == "init"
+    assert result["approve"] == 2
+    assert result["reject"] == 1
 
-# -------------------------
-# VOTE TESTS
-# -------------------------
 
 @pytest.mark.asyncio
-async def test_vote_not_in_board(service, db):
+async def test_get_init_state_already_finished(service):
+    from datetime import datetime, timezone
+    fake_idea = MagicMock()
+    fake_idea.voting_ends_at = datetime(2000, 1, 1, tzinfo=timezone.utc)
+    fake_idea.accepted = True
+
+    with patch("app.services.vote_service.get_idea_by_id", new=AsyncMock(return_value=fake_idea)):
+        result = await service.get_init_state("idea1")
+
+    assert result["event"] == "voting_already_finished"
+    assert result["accepted"] is True
+
+
+@pytest.mark.asyncio
+async def test_vote_not_in_board(service):
     with patch("app.services.vote_service.alredy_member_of_board", new=AsyncMock(return_value=False)):
         with pytest.raises(HTTPException) as exc:
             await service.vote("u1", "b1", "i1", True)
 
-        assert exc.value.status_code == 403
+    assert exc.value.status_code == 403
 
 
 @pytest.mark.asyncio
-async def test_vote_create(service, db):
-    with patch("app.services.vote_service.alredy_member_of_board", new=AsyncMock(return_value=True)):
-        with patch("app.services.vote_service.get_idea_by_id", new=AsyncMock(return_value=MagicMock(voting_ends_at=None))):
-            with patch("app.services.vote_service.get_vote", new=AsyncMock(return_value=None)):
-                with patch("app.services.vote_service.create_vote", new=AsyncMock()):
-                    with patch("app.services.vote_service.get_vote_counts", new=AsyncMock(return_value={"approve": 1, "reject": 0})):
+async def test_vote_idea_not_found(service):
+    with patch("app.services.vote_service.alredy_member_of_board", new=AsyncMock(return_value=True)), \
+         patch("app.services.vote_service.get_idea_by_id", new=AsyncMock(return_value=None)):
 
-                        result = await service.vote("u1", "b1", "i1", True)
+        with pytest.raises(HTTPException) as exc:
+            await service.vote("u1", "b1", "i1", True)
 
-                        assert result["event"] == "vote_updated"
-                        assert result["approve"] == 1
+    assert exc.value.status_code == 404
 
 
-# -------------------------
-# FINALIZE TEST
-# -------------------------
+@pytest.mark.asyncio
+async def test_vote_ended(service):
+    from datetime import datetime, timezone
+    idea = MagicMock()
+    idea.voting_ends_at = datetime(2000, 1, 1, tzinfo=timezone.utc)
+
+    with patch("app.services.vote_service.alredy_member_of_board", new=AsyncMock(return_value=True)), \
+         patch("app.services.vote_service.get_idea_by_id", new=AsyncMock(return_value=idea)):
+
+        with pytest.raises(HTTPException) as exc:
+            await service.vote("u1", "b1", "i1", True)
+
+    assert exc.value.status_code == 400
+    assert "ended" in exc.value.detail.lower()
+
+
+@pytest.mark.asyncio
+async def test_vote_create(service):
+    with patch("app.services.vote_service.alredy_member_of_board", new=AsyncMock(return_value=True)), \
+         patch("app.services.vote_service.get_idea_by_id", new=AsyncMock(return_value=MagicMock(voting_ends_at=None))), \
+         patch("app.services.vote_service.get_vote", new=AsyncMock(return_value=None)), \
+         patch("app.services.vote_service.create_vote", new=AsyncMock()), \
+         patch("app.services.vote_service.get_vote_counts", new=AsyncMock(return_value={"approve": 1, "reject": 0})):
+
+        result = await service.vote("u1", "b1", "i1", True)
+
+    assert result["event"] == "vote_updated"
+    assert result["approve"] == 1
+
+
+@pytest.mark.asyncio
+async def test_vote_update(service):
+    existing = MagicMock()
+    existing.status = False
+
+    with patch("app.services.vote_service.alredy_member_of_board", new=AsyncMock(return_value=True)), \
+         patch("app.services.vote_service.get_idea_by_id", new=AsyncMock(return_value=MagicMock(voting_ends_at=None))), \
+         patch("app.services.vote_service.get_vote", new=AsyncMock(return_value=existing)), \
+         patch("app.services.vote_service.update_vote", new=AsyncMock()), \
+         patch("app.services.vote_service.get_vote_counts", new=AsyncMock(return_value={"approve": 1, "reject": 0})):
+
+        result = await service.vote("u1", "b1", "i1", True)
+
+    assert result["event"] == "vote_updated"
+
+
+@pytest.mark.asyncio
+async def test_vote_skip_same_status(service):
+    existing = MagicMock()
+    existing.status = True
+
+    create_mock = AsyncMock()
+    update_mock = AsyncMock()
+
+    with patch("app.services.vote_service.alredy_member_of_board", new=AsyncMock(return_value=True)), \
+         patch("app.services.vote_service.get_idea_by_id", new=AsyncMock(return_value=MagicMock(voting_ends_at=None))), \
+         patch("app.services.vote_service.get_vote", new=AsyncMock(return_value=existing)), \
+         patch("app.services.vote_service.create_vote", create_mock), \
+         patch("app.services.vote_service.update_vote", update_mock), \
+         patch("app.services.vote_service.get_vote_counts", new=AsyncMock(return_value={"approve": 1, "reject": 0})):
+
+        await service.vote("u1", "b1", "i1", True)
+
+    create_mock.assert_not_called()
+    update_mock.assert_not_called()
+
 
 @pytest.mark.asyncio
 async def test_finalize_accept(service, db):
     idea = MagicMock()
     idea.accepted = False
 
-    with patch("app.services.vote_service.get_vote_counts", new=AsyncMock(return_value={"approve": 5, "reject": 2})):
-        with patch("app.services.vote_service.get_idea_by_id", new=AsyncMock(return_value=idea)):
-            with patch.object(db, "commit", new=AsyncMock()):
+    with patch("app.services.vote_service.get_vote_counts", new=AsyncMock(return_value={"approve": 5, "reject": 2})), \
+         patch("app.services.vote_service.get_idea_by_id", new=AsyncMock(return_value=idea)), \
+         patch.object(db, "commit", new=AsyncMock()):
 
-                result = await service.finalize_voting("i1", "b1")
+        result = await service.finalize_voting(db, "i1", "b1")
 
-                assert result["accepted"] is True
-                assert idea.accepted is True
+    assert result["accepted"] is True
+    assert idea.accepted is True
 
 
 @pytest.mark.asyncio
 async def test_finalize_delete(service, db):
     idea = MagicMock()
 
-    with patch("app.services.vote_service.get_vote_counts", new=AsyncMock(return_value={"approve": 1, "reject": 3})):
-        with patch("app.services.vote_service.get_idea_by_id", new=AsyncMock(return_value=idea)):
-            with patch("app.services.vote_service.delete_idea", new=AsyncMock()):
+    with patch("app.services.vote_service.get_vote_counts", new=AsyncMock(return_value={"approve": 1, "reject": 3})), \
+         patch("app.services.vote_service.get_idea_by_id", new=AsyncMock(return_value=idea)), \
+         patch("app.services.vote_service.delete_idea", new=AsyncMock()):
 
-                result = await service.finalize_voting("i1", "b1")
+        result = await service.finalize_voting(db, "i1", "b1")
 
-                assert result["accepted"] is False
+    assert result["accepted"] is False
 
 
-# -------------------------
-# WS HANDLER BASIC TEST
-# -------------------------
+@pytest.mark.asyncio
+async def test_finalize_idea_not_found(service, db):
+    with patch("app.services.vote_service.get_vote_counts", new=AsyncMock(return_value={"approve": 1, "reject": 0})), \
+         patch("app.services.vote_service.get_idea_by_id", new=AsyncMock(return_value=None)):
+
+        with pytest.raises(HTTPException) as exc:
+            await service.finalize_voting(db, "i1", "b1")
+
+    assert exc.value.status_code == 404
+
 
 @pytest.mark.asyncio
 async def test_ws_handler_unauthorized(service, websocket):
@@ -142,4 +207,4 @@ async def test_ws_handler_unauthorized(service, websocket):
     with patch.object(service, "authorize", return_value=None):
         await service.ws_handler(websocket, "i1", "b1")
 
-        websocket.close.assert_called()
+    websocket.close.assert_called()

@@ -2,6 +2,7 @@ from app.db.session import get_db
 from app.services.vote_service import VoteService
 from fastapi import APIRouter, Depends, WebSocket
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.websockets import WebSocketDisconnect
 
 router = APIRouter()
 
@@ -14,4 +15,7 @@ async def vote_ws(
     db: AsyncSession = Depends(get_db),
 ):
     service = VoteService(db)
-    await service.ws_handler(websocket, idea_id, board_id)
+    try:
+        await service.ws_handler(websocket, idea_id, board_id)
+    except WebSocketDisconnect:
+        pass

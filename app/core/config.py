@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str | None = None
     GOOGLE_CLIENT_SECRET: str | None = None
     GOOGLE_REDIRECT_URI: str = "http://localhost:8000/auth/google/callback"
+    REDIS_URL: str
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

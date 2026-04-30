@@ -1,22 +1,40 @@
 import asyncio
 
 from app.core.logging import setup_logging
+from app.core.redis import get_redis
 from app.core.security import decode_token
 from app.core.ws_manager import manager
 from app.crud.board import alredy_member_of_board
 from app.crud.idea import delete_idea, get_idea_by_id
 from app.crud.vote import create_vote, get_vote, get_vote_counts, update_vote
+from app.db.session import SessionLocal
 from app.utils.time import utcnow
 from fastapi import HTTPException, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 
-active_timers: set[str] = set()
+TIMER_KEY = "voting_timer:{idea_id}"
 
 
 class VoteService:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.logger = setup_logging()
+
+    async def _is_timer_active(self, idea_id: str) -> bool:
+        redis = await get_redis()
+        return bool(await redis.exists(TIMER_KEY.format(idea_id=idea_id)))
+
+    async def _set_timer_active(self, idea_id: str, ttl_seconds: int):
+        redis = await get_redis()
+        await redis.set(
+            TIMER_KEY.format(idea_id=idea_id),
+            "1",
+            ex=ttl_seconds + 10,
+        )
+
+    async def _clear_timer(self, idea_id: str):
+        redis = await get_redis()
+        await redis.delete(TIMER_KEY.format(idea_id=idea_id))
 
     async def connect(self, websocket: WebSocket, board_id: str):
         self.logger.info(f"[WS CONNECT] board={board_id}")
@@ -87,14 +105,10 @@ class VoteService:
         idea_id: str,
         status: bool,
     ) -> dict:
-        self.logger.info(
-            f"[VOTE] user={user_id} idea={idea_id} status={status}"
-        )
+        self.logger.info(f"[VOTE] user={user_id} idea={idea_id} status={status}")
 
         if not await alredy_member_of_board(self.db, user_id, board_id):
-            self.logger.warning(
-                f"[VOTE DENIED] user={user_id} not in board={board_id}"
-            )
+            self.logger.warning(f"[VOTE DENIED] user={user_id} not in board={board_id}")
             raise HTTPException(status_code=403, detail="Not in board")
 
         idea = await get_idea_by_id(self.db, idea_id)
@@ -117,7 +131,6 @@ class VoteService:
                 await update_vote(self.db, user_id, idea_id, status)
             else:
                 self.logger.debug(f"[VOTE SKIP] no change user={user_id}")
-
         except Exception:
             self.logger.exception("[VOTE FAILED]")
             raise HTTPException(status_code=500, detail="Vote error")
@@ -134,11 +147,11 @@ class VoteService:
         self.logger.info(f"[VOTE RESULT] {result}")
         return result
 
-    async def finalize_voting(self, idea_id: str, board_id: str) -> dict:
+    async def finalize_voting(self, db: AsyncSession, idea_id: str, board_id: str) -> dict:
         self.logger.info(f"[FINALIZE] idea={idea_id}")
 
-        counts = await get_vote_counts(self.db, idea_id)
-        idea = await get_idea_by_id(self.db, idea_id)
+        counts = await get_vote_counts(db, idea_id)
+        idea = await get_idea_by_id(db, idea_id)
 
         if not idea:
             self.logger.error(f"[FINALIZE ERROR] idea not found {idea_id}")
@@ -148,10 +161,10 @@ class VoteService:
 
         if accepted:
             idea.accepted = True
-            await self.db.commit()
+            await db.commit()
             self.logger.info(f"[FINALIZE] accepted idea={idea_id}")
         else:
-            await delete_idea(self.db, idea_id)
+            await delete_idea(db, idea_id)
             self.logger.info(f"[FINALIZE] deleted idea={idea_id}")
 
         result = {
@@ -171,26 +184,31 @@ class VoteService:
         try:
             idea = await get_idea_by_id(self.db, idea_id)
 
-            if not idea:
+            if not idea or not idea.voting_ends_at:
                 self.logger.error(f"[TIMER STOP] idea not found {idea_id}")
                 return
 
-            if idea.voting_ends_at:
-                wait = (idea.voting_ends_at - utcnow()).total_seconds()
+            wait = (idea.voting_ends_at - utcnow()).total_seconds()
+            self.logger.info(f"[TIMER WAIT] {wait}s idea={idea_id}")
 
-                self.logger.info(f"[TIMER WAIT] {wait}s idea={idea_id}")
+            if wait > 0:
+                await asyncio.sleep(wait)
 
-                if wait > 0:
-                    await asyncio.sleep(wait)
+            async with SessionLocal() as db:
+                idea = await get_idea_by_id(db, idea_id)
+                if not idea:
+                    self.logger.info(f"[TIMER SKIP] idea already gone {idea_id}")
+                    return
 
-            result = await self.finalize_voting(idea_id, board_id)
+                result = await self.finalize_voting(db, idea_id, board_id)
+
             await self.broadcast(board_id, result)
 
         except Exception:
             self.logger.exception(f"[TIMER FAILED] idea={idea_id}")
 
         finally:
-            active_timers.discard(idea_id)
+            await self._clear_timer(idea_id)
             self.logger.info(f"[TIMER END] idea={idea_id}")
 
     async def ws_handler(
@@ -199,9 +217,7 @@ class VoteService:
         idea_id: str,
         board_id: str,
     ):
-        self.logger.info(
-            f"[WS HANDLER START] idea={idea_id} board={board_id}"
-        )
+        self.logger.info(f"[WS HANDLER START] idea={idea_id} board={board_id}")
 
         token = websocket.query_params.get("token")
         user_id = self.authorize(token)
@@ -227,25 +243,28 @@ class VoteService:
         await self.connect(websocket, board_id)
         await websocket.send_json(init_state)
 
-        if idea_id not in active_timers:
-            active_timers.add(idea_id)
+        if not await self._is_timer_active(idea_id):
+            seconds_left = init_state.get("seconds_left") or 0
+            await self._set_timer_active(idea_id, ttl_seconds=seconds_left)
             self.logger.info(f"[TIMER CREATED] idea={idea_id}")
-            asyncio.create_task(
-                self.run_voting_timer(idea_id, board_id)
-            )
+            asyncio.create_task(self.run_voting_timer(idea_id, board_id))
 
         try:
             while True:
-                data = await websocket.receive_json()
-                self.logger.debug(f"[WS MESSAGE] {data}")
+                try:
+                    data = await websocket.receive_json()
+                except WebSocketDisconnect:
+                    raise
+                except Exception:
+                    self.logger.warning("[INVALID JSON] cannot parse message")
+                    await websocket.send_json({"error": "Invalid JSON"})
+                    continue
 
                 status = data.get("status")
 
                 if not isinstance(status, bool):
                     self.logger.warning(f"[INVALID STATUS] {data}")
-                    await websocket.send_json(
-                        {"error": "Invalid status"}
-                    )
+                    await websocket.send_json({"error": "Invalid status"})
                     continue
 
                 result = await self.vote(
@@ -254,7 +273,6 @@ class VoteService:
                     idea_id=idea_id,
                     status=status,
                 )
-
                 await self.broadcast(board_id, result)
 
         except WebSocketDisconnect:
