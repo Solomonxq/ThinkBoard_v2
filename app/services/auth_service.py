@@ -4,7 +4,8 @@ from app.core.security import (
     create_token,
     decode_refresh_token,
     hash_password,
-    verify_password,
+    hash_password_async,
+    verify_password_async,
 )
 from app.crud.user import (
     create_user,
@@ -32,20 +33,19 @@ class AuthService:
         access_token = create_token({"sub": str(user.id), "email": user.email})
         refresh_token = create_refresh_token({"sub": str(user.id), "email": user.email})
 
-        user.refresh_token = hash_password(refresh_token)
+        user.refresh_token = await hash_password_async(refresh_token)
         await self.db.commit()
-        self.logger.info(f"User registered: {user.email}")
 
+        self.logger.info(f"User registered: {user.email}")
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "bearer",
-            "needs_password": True
+            "needs_password": True,
         }
 
     async def login_user(self, data: UserLogin) -> dict:
         user = await get_user_email(self.db, data.email)
-
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
 
@@ -55,7 +55,7 @@ class AuthService:
                 detail="This account uses Google login"
             )
 
-        if not verify_password(data.password, user.password):
+        if not await verify_password_async(data.password, user.password):
             raise HTTPException(status_code=401, detail="Invalid password")
 
         access_token = create_token({"sub": str(user.id), "email": user.email})
@@ -65,7 +65,6 @@ class AuthService:
         await self.db.commit()
 
         self.logger.info(f"User logged in: {user.email}")
-
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
@@ -82,18 +81,18 @@ class AuthService:
         if not user or not user.refresh_token:
             raise HTTPException(status_code=401, detail="User not found")
 
-        if not verify_password(token, user.refresh_token):
+        if not await verify_password_async(token, user.refresh_token):
             raise HTTPException(status_code=401, detail="Invalid password")
 
         access_token = create_token({"sub": str(user.id), "email": user.email})
         refresh_token = create_refresh_token({"sub": str(user.id), "email": user.email})
 
-        user.refresh_token = hash_password(refresh_token)
+        user.refresh_token = await hash_password_async(refresh_token)
         await self.db.commit()
-        self.logger.info(f"Tokens refreshed for user: {user.id}")
 
+        self.logger.info(f"Tokens refreshed for user: {user.id}")
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
-            "token_type": "bearer"
+            "token_type": "bearer",
         }

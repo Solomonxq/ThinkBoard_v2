@@ -76,7 +76,7 @@ async def test_get_init_state_already_finished(service):
 
 @pytest.mark.asyncio
 async def test_vote_not_in_board(service):
-    with patch("app.services.vote_service.alredy_member_of_board", new=AsyncMock(return_value=False)):
+    with patch("app.services.vote_service.already_member_of_board", new=AsyncMock(return_value=False)):
         with pytest.raises(HTTPException) as exc:
             await service.vote("u1", "b1", "i1", True)
 
@@ -85,7 +85,7 @@ async def test_vote_not_in_board(service):
 
 @pytest.mark.asyncio
 async def test_vote_idea_not_found(service):
-    with patch("app.services.vote_service.alredy_member_of_board", new=AsyncMock(return_value=True)), \
+    with patch("app.services.vote_service.already_member_of_board", new=AsyncMock(return_value=True)), \
          patch("app.services.vote_service.get_idea_by_id", new=AsyncMock(return_value=None)):
 
         with pytest.raises(HTTPException) as exc:
@@ -100,7 +100,7 @@ async def test_vote_ended(service):
     idea = MagicMock()
     idea.voting_ends_at = datetime(2000, 1, 1, tzinfo=timezone.utc)
 
-    with patch("app.services.vote_service.alredy_member_of_board", new=AsyncMock(return_value=True)), \
+    with patch("app.services.vote_service.already_member_of_board", new=AsyncMock(return_value=True)), \
          patch("app.services.vote_service.get_idea_by_id", new=AsyncMock(return_value=idea)):
 
         with pytest.raises(HTTPException) as exc:
@@ -112,7 +112,7 @@ async def test_vote_ended(service):
 
 @pytest.mark.asyncio
 async def test_vote_create(service):
-    with patch("app.services.vote_service.alredy_member_of_board", new=AsyncMock(return_value=True)), \
+    with patch("app.services.vote_service.already_member_of_board", new=AsyncMock(return_value=True)), \
          patch("app.services.vote_service.get_idea_by_id", new=AsyncMock(return_value=MagicMock(voting_ends_at=None))), \
          patch("app.services.vote_service.get_vote", new=AsyncMock(return_value=None)), \
          patch("app.services.vote_service.create_vote", new=AsyncMock()), \
@@ -129,7 +129,7 @@ async def test_vote_update(service):
     existing = MagicMock()
     existing.status = False
 
-    with patch("app.services.vote_service.alredy_member_of_board", new=AsyncMock(return_value=True)), \
+    with patch("app.services.vote_service.already_member_of_board", new=AsyncMock(return_value=True)), \
          patch("app.services.vote_service.get_idea_by_id", new=AsyncMock(return_value=MagicMock(voting_ends_at=None))), \
          patch("app.services.vote_service.get_vote", new=AsyncMock(return_value=existing)), \
          patch("app.services.vote_service.update_vote", new=AsyncMock()), \
@@ -148,7 +148,7 @@ async def test_vote_skip_same_status(service):
     create_mock = AsyncMock()
     update_mock = AsyncMock()
 
-    with patch("app.services.vote_service.alredy_member_of_board", new=AsyncMock(return_value=True)), \
+    with patch("app.services.vote_service.already_member_of_board", new=AsyncMock(return_value=True)), \
          patch("app.services.vote_service.get_idea_by_id", new=AsyncMock(return_value=MagicMock(voting_ends_at=None))), \
          patch("app.services.vote_service.get_vote", new=AsyncMock(return_value=existing)), \
          patch("app.services.vote_service.create_vote", create_mock), \

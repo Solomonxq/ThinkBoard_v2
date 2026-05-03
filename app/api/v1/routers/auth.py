@@ -60,7 +60,7 @@ async def google_callback(
 
 
 @router.post("/register", response_model=RegisterResponse)
-@limiter.limit("3/minute")
+@limiter.limit("100/minute")
 async def register(
     request: Request,
     data: UserCreate,
@@ -71,7 +71,7 @@ async def register(
 
 
 @router.post("/login", response_model=TokenResponse)
-@limiter.limit("5/minute")
+@limiter.limit("100/minute")
 async def login(
     request: Request,
     data: UserLogin,

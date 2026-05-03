@@ -105,7 +105,7 @@ async def test_add_user_to_board_already_member(board_service):
         "app.services.board_service.is_owner",
         new=AsyncMock(return_value=True)
     ), patch(
-        "app.services.board_service.crud_alredy_member_of_board",
+        "app.services.board_service.crud_already_member_of_board",
         new=AsyncMock(return_value=True)
     ):
 
@@ -139,7 +139,7 @@ async def test_add_user_to_board_db_error(board_service):
         "app.services.board_service.is_owner",
         new=AsyncMock(return_value=True)
     ), patch(
-        "app.services.board_service.crud_alredy_member_of_board",
+        "app.services.board_service.crud_already_member_of_board",
         new=AsyncMock(return_value=False)
     ), patch(
         "app.services.board_service.crud_add_user_to_board",

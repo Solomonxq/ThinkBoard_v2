@@ -34,7 +34,7 @@ async def test_add_user_to_board_success(board_service, mock_db):
         "app.services.board_service.get_board_by_id",
         new=AsyncMock(return_value=mock_board)
     ), patch(
-        "app.services.board_service.crud_alredy_member_of_board",
+        "app.services.board_service.crud_already_member_of_board",
         new=AsyncMock(return_value=False)
     ), patch(
         "app.services.board_service.crud_add_user_to_board",
@@ -63,7 +63,7 @@ async def test_add_user_to_board_db_error(board_service, mock_db):
         "app.services.board_service.get_board_by_id",
         new=AsyncMock(return_value=mock_board)
     ), patch(
-        "app.services.board_service.crud_alredy_member_of_board",
+        "app.services.board_service.crud_already_member_of_board",
         new=AsyncMock(return_value=False)
     ), patch(
         "app.services.board_service.crud_add_user_to_board",
@@ -125,13 +125,13 @@ async def test_add_user_to_board_already_member(board_service):
         "app.services.board_service.get_user_by_id",
         new=AsyncMock(return_value=MagicMock(id="user-456"))
     ), patch(
-        "app.services.board_service.is_owner",       # ✅ must mock — runs before crud_alredy_member_of_board
+        "app.services.board_service.is_owner",       # ✅ must mock — runs before crud_already_member_of_board
         new=AsyncMock(return_value=True)
     ), patch(
         "app.services.board_service.get_board_by_id",
         new=AsyncMock(return_value=mock_board)
     ), patch(
-        "app.services.board_service.crud_alredy_member_of_board",
+        "app.services.board_service.crud_already_member_of_board",
         new=AsyncMock(return_value=True)
     ):
         with pytest.raises(HTTPException) as exc:
