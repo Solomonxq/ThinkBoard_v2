@@ -28,7 +28,13 @@ async def test_create_board_success(board_service, mock_db):
     mock_board.access = data.access
     mock_board.description = data.description
 
+    mock_user = MagicMock()
+    mock_user.email = "user@example.com"
+
     with patch(
+        "app.services.board_service.get_user_by_id",
+        new=AsyncMock(return_value=mock_user)
+    ), patch(
         "app.services.board_service.crud_create_board",
         new=AsyncMock(return_value=mock_board)
     ) as mock_create:
@@ -49,7 +55,13 @@ async def test_create_board_failure(board_service, mock_db):
         description="A board for testing"
     )
 
+    mock_user = MagicMock()
+    mock_user.email = "user@example.com"
+
     with patch(
+        "app.services.board_service.get_user_by_id",
+        new=AsyncMock(return_value=mock_user)
+    ), patch(
         "app.services.board_service.crud_create_board",
         new=AsyncMock(side_effect=Exception("DB error"))
     ) as mock_create:

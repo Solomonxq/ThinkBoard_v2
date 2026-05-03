@@ -1,4 +1,6 @@
 from app.models.idea import Idea
+import inspect
+
 from app.schemas.idea import IdeaCreate
 from app.utils.time import utcnow
 from sqlalchemy import and_, delete, exists, select
@@ -23,14 +25,20 @@ async def get_idea_by_title(db: AsyncSession, title: str, board_id: str) -> Idea
     result = await db.execute(
         select(Idea).where(and_(Idea.board_id == board_id, Idea.title == title))
     )
-    return result.scalars().first()
+    scalars = result.scalars()
+    if inspect.isawaitable(scalars):
+        scalars = await scalars
+    return scalars.first()
 
 
 async def owner_of_idea(db: AsyncSession, user_id: str, idea_id: str) -> bool:
     result = await db.execute(
         select(exists().where(and_(Idea.id == idea_id, Idea.user_id == user_id)))
     )
-    return result.scalar()
+    scalar = result.scalar()
+    if inspect.isawaitable(scalar):
+        scalar = await scalar
+    return scalar
 
 
 async def delete_idea(db: AsyncSession, idea_id: str) -> None:
@@ -40,11 +48,17 @@ async def delete_idea(db: AsyncSession, idea_id: str) -> None:
 
 async def get_idea_by_id(db: AsyncSession, idea_id: str) -> Idea | None:
     result = await db.execute(select(Idea).where(Idea.id == idea_id))
-    return result.scalars().first()
+    scalars = result.scalars()
+    if inspect.isawaitable(scalars):
+        scalars = await scalars
+    return scalars.first()
 
 
 async def check_idea_in_board(db: AsyncSession, idea_id: str, board_id: str) -> bool:
     result = await db.execute(
         select(exists().where(and_(Idea.id == idea_id, Idea.board_id == board_id)))
     )
-    return result.scalar()
+    scalar = result.scalar()
+    if inspect.isawaitable(scalar):
+        scalar = await scalar
+    return scalar

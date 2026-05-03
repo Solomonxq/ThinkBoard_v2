@@ -1,6 +1,5 @@
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
 from app.schemas.user import UserCreate
 from app.services.auth_service import AuthService
 from fastapi import HTTPException
@@ -11,24 +10,25 @@ from pydantic import ValidationError
 def mock_db():
     return AsyncMock()
 
+
 @pytest.fixture
 def auth_service(mock_db):
     return AuthService(db=mock_db)
+
 
 @pytest.mark.asyncio
 async def test_register_success(auth_service, mock_db):
     data = UserCreate(email="test@ex.com", username="asdasdasd", password="sad212312sad")
 
-
     with patch("app.services.auth_service.get_user_email", AsyncMock(return_value=None)), \
          patch("app.services.auth_service.get_user_by_username", AsyncMock(return_value=None)), \
-         patch("app.services.auth_service.create_user", AsyncMock(return_value=MagicMock(id=1, email="test@ex.com"))):
-
+         patch("app.services.auth_service.create_user", AsyncMock(return_value=MagicMock(id=1, email="test@ex.com"))), \
+         patch("app.events.auth_event.send_email_task.delay"):
         result = await auth_service.register_user(data)
 
-        assert result["token_type"] == "bearer"
+    assert result["token_type"] == "bearer"
+    mock_db.commit.assert_called_once()
 
-        mock_db.commit.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_register_already_exists(auth_service, mock_db):
@@ -38,12 +38,12 @@ async def test_register_already_exists(auth_service, mock_db):
         with pytest.raises(HTTPException) as ex:
             await auth_service.register_user(data)
 
-        assert ex.value.status_code == 400
-        assert "Email already registered" in ex.value.detail
+    assert ex.value.status_code == 400
+    assert "Email already registered" in ex.value.detail
 
 
 @pytest.mark.asyncio
-async def test_register_short_password(auth_service,mock_db):
+async def test_register_short_password(auth_service, mock_db):
     with pytest.raises(ValidationError) as ex:
         UserCreate(
             email="eqdsasd@sad.com",
@@ -53,8 +53,9 @@ async def test_register_short_password(auth_service,mock_db):
 
     assert "password" in str(ex.value)
 
+
 @pytest.mark.asyncio
-async def test_register_short_username(auth_service,mock_db):
+async def test_register_short_username(auth_service, mock_db):
     with pytest.raises(ValidationError) as ex:
         UserCreate(
             email="eqdsasd@sad.com",

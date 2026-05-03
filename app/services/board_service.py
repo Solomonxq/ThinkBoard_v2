@@ -16,6 +16,7 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 import traceback
+from app.tasks.email_tasks import send_email_task
 
 
 class BoardService:
@@ -27,10 +28,28 @@ class BoardService:
    
     async def create_board(self, data: BoardCreate, owner_id: str) -> Board:
         self.logger.info(f"Creating board '{data.board_name}' for owner {owner_id}")
+
+        user = await get_user_by_id(self.db, owner_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
         try:
-            return await crud_create_board(self.db, data, owner_id)
-        except Exception as e:
-            self.logger.error(f"Error occurred while creating board: {traceback.format_exc()}")
+            board = await crud_create_board(self.db, data, owner_id)
+
+            self.logger.info(
+                f"Board '{board.board_name}' created successfully with ID {board.id}"
+            )
+
+            send_email_task.delay(
+                user.email,
+                "Board Created",
+                f"Your board '{board.board_name}' has been created successfully!"
+            )
+
+            return board
+
+        except Exception:
+            self.logger.error(traceback.format_exc())
             raise HTTPException(status_code=500, detail="Failed to create board")
 
     async def delete_board(self,board_id:str,user_id:str):
@@ -44,6 +63,13 @@ class BoardService:
             raise HTTPException(status_code=403, detail="Only owner can delete the board")
         try:
             await crud_delete_board(self.db, board_id)
+            self.logger.info(f"Board with ID {board_id} deleted successfully")
+            send_email_task.delay(
+                board.owner.email,
+                "Board Deleted",
+                f"Your board '{board.board_name}' has been deleted successfully!"
+            )
+
         except Exception as e:
             self.logger.error(f"Error occurred while deleting board {board_id}: {e}")
             raise HTTPException(status_code=500, detail="Failed to delete board")
@@ -66,6 +92,12 @@ class BoardService:
             raise HTTPException(status_code=400, detail="User is already a member of the board")
         try:
             await crud_add_user_to_board(self.db, board_id, user_id)
+            send_email_task.delay(
+                user.email,
+                "Added to Board",
+                f"You have been added to the board '{board.board_name}'!"
+            )
+            self.logger.info(f"User {user_id} added to board {board_id} successfully")
         except ValidationError as e:
             self.logger.error(f"Validation error occurred while adding user {user_id} to board {board_id}: {e}")
             raise HTTPException(status_code=422, detail="Invalid data for adding user to board")
@@ -88,6 +120,12 @@ class BoardService:
             raise HTTPException(status_code=404, detail="Board not found")
         try:
             await crud_delete_user_from_board(self.db, board, user_id)
+            send_email_task.delay(
+                user.email,
+                "Removed from Board",
+                f"You have been removed from the board '{board.board_name}'!"
+            )
+            self.logger.info(f"User {user_id} removed from board {board_id} successfully")
         except ValidationError as e:
             self.logger.error(f"Validation error occurred while removing user {user_id} from board {board_id}: {e}")
             raise HTTPException(status_code=422, detail="Invalid data for removing user from board")
@@ -125,6 +163,12 @@ class BoardService:
             raise HTTPException(status_code=404, detail="Board not found")
         try:
             await crud_add_to_favorite_boards(self.db, user_id, board_id)
+            send_email_task.delay(
+                user_id,
+                "Added to Favorites",
+                f"You have added the board '{board.board_name}' to your favorites!"
+            )
+            self.logger.info(f"Board {board_id} added to favorites for user {user_id} successfully")
         except ValidationError as e:
             self.logger.error(f"Validation error occurred while adding board {board_id} to favorites for user {user_id}: {e}")
             raise HTTPException(status_code=422, detail="Invalid data for adding board to favorites")
@@ -140,6 +184,12 @@ class BoardService:
             raise HTTPException(status_code=404, detail="Board not found")
         try:
             await crud_remove_from_favorite_boards(self.db, user_id, board_id)
+            send_email_task.delay(
+                user_id,
+                "Removed from Favorites",
+                f"You have removed the board '{board.board_name}' from your favorites!"
+            )
+            self.logger.info(f"Board {board_id} removed from favorites for user {user_id} successfully")
         except ValidationError as e:
             self.logger.error(f"Validation error occurred while removing board {board_id} from favorites for user {user_id}: {e}")
             raise HTTPException(status_code=422, detail="Invalid data for removing board from favorites")

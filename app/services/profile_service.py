@@ -6,6 +6,7 @@ import uuid
 from app.core.logging import setup_logging
 from app.core.redis import get_redis
 from app.crud.user import delete_user, get_user_by_id, update_user_profile
+from app.events.profile_event import delete_account_event
 from app.models.associations import board_members
 from app.models.board import Board
 from app.models.user import User
@@ -14,6 +15,7 @@ from fastapi import HTTPException, UploadFile
 from PIL import Image
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploads/avatars")
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
@@ -157,8 +159,14 @@ class ProfileService:
                 except OSError:
                     self.logger.warning(f"Failed to remove avatar file: {avatar_path}")
 
+        await self.db.execute(
+            board_members.delete().where(board_members.c.user_id == persisted_user.id)
+        )
+
         await delete_user(self.db, persisted_user)
 
         redis = await get_redis()
         await redis.delete(f"profile:{persisted_user.username}")
         await redis.delete(f"user:{persisted_user.id}")
+
+        delete_account_event(persisted_user.email)

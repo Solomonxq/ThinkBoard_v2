@@ -18,6 +18,7 @@ from app.services.oauth import OAuthService
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.events.auth_event import  password_reset_event
 
 router = APIRouter()
 
@@ -89,5 +90,7 @@ async def set_password(
 
     current_user.password = hash_password(data.password)
     await db.commit()
+    
+    password_reset_event(current_user.email)
 
     return {"message": "Password set successfully"}

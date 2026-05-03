@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str | None = None
     GOOGLE_REDIRECT_URI: str = "http://localhost:8000/auth/google/callback"
     REDIS_URL: str
+    EMAIL: str
+    EMAIL_PASSWORD: str
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

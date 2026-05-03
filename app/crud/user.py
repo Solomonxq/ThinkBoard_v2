@@ -1,3 +1,5 @@
+import inspect
+
 from app.core.security import hash_password
 from app.models.user import User
 from app.schemas.user import UserCreate
@@ -11,11 +13,17 @@ async def get_user_email(db: AsyncSession, email: str) -> User | None:
         select(User)
         .where(User.email == email.lower())
     )
-    return result.scalars().first()
+    scalars = result.scalars()
+    if inspect.isawaitable(scalars):
+        scalars = await scalars
+    return scalars.first()
 
 async def get_user_by_username(db: AsyncSession, username: str) -> User | None:
     result = await db.execute(select(User).where(User.username == username))
-    return result.scalars().first()
+    scalars = result.scalars()
+    if inspect.isawaitable(scalars):
+        scalars = await scalars
+    return scalars.first()
 
 
 async def create_user(db: AsyncSession, data: UserCreate) -> User:
@@ -34,7 +42,10 @@ async def get_user_by_id(db: AsyncSession, user_id: str) -> User | None:
     result = await db.execute(
         select(User).where(User.id == user_id)
     )
-    return result.scalars().first()
+    scalars = result.scalars()
+    if inspect.isawaitable(scalars):
+        scalars = await scalars
+    return scalars.first()
 
 
 async def update_user_profile(db: AsyncSession, user: User, data: dict) -> User:

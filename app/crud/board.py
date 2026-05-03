@@ -1,3 +1,4 @@
+import inspect
 import json
 
 from app.core.redis import get_redis
@@ -8,6 +9,8 @@ from app.schemas.board import BoardCreate
 from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from app.tasks.email_tasks import send_email_task
+
 
 
 async def create_board(db: AsyncSession, data: BoardCreate, owner_id: str) -> Board:
@@ -23,7 +26,10 @@ async def create_board(db: AsyncSession, data: BoardCreate, owner_id: str) -> Bo
     board_id = board.id
 
     owner_result = await db.execute(select(User).where(User.id == owner_id))
-    owner = owner_result.scalars().first()
+    owner_scalars = owner_result.scalars()
+    if inspect.isawaitable(owner_scalars):
+        owner_scalars = await owner_scalars
+    owner = owner_scalars.first()
 
     if owner:
         await db.execute(
@@ -54,7 +60,10 @@ async def get_board_by_id(db: AsyncSession, board_id: str) -> Board | None:
         .options(selectinload(Board.members))
         .where(Board.id == board_id)
     )
-    board = result.scalars().first()
+    board_scalars = result.scalars()
+    if inspect.isawaitable(board_scalars):
+        board_scalars = await board_scalars
+    board = board_scalars.first()
 
     if board:
         data = {
@@ -81,7 +90,10 @@ async def invalidate_board_cache(board_id: str):
 
 async def delete_board(db: AsyncSession, board_id: str):
     result = await db.execute(select(Board).where(Board.id == board_id))
-    board = result.scalars().first()
+    board_scalars = result.scalars()
+    if inspect.isawaitable(board_scalars):
+        board_scalars = await board_scalars
+    board = board_scalars.first()
     if board:
         await db.delete(board)
         await db.commit()
@@ -95,7 +107,10 @@ async def is_owner(db: AsyncSession, user_id: str, board_id: str) -> bool:
             Board.owner_id == user_id,
         ))
     )
-    return result.scalar()
+    scalar = result.scalar()
+    if inspect.isawaitable(scalar):
+        scalar = await scalar
+    return scalar
 
 
 async def add_user_to_board(db: AsyncSession, board_id: str, user_id: str):
@@ -104,12 +119,18 @@ async def add_user_to_board(db: AsyncSession, board_id: str, user_id: str):
         .options(selectinload(Board.members))
         .where(Board.id == board_id)
     )
-    board = result.scalars().first()
+    board_scalars = result.scalars()
+    if inspect.isawaitable(board_scalars):
+        board_scalars = await board_scalars
+    board = board_scalars.first()
     if not board:
         return
 
     user_result = await db.execute(select(User).where(User.id == user_id))
-    user = user_result.scalars().first()
+    user_scalars = user_result.scalars()
+    if inspect.isawaitable(user_scalars):
+        user_scalars = await user_scalars
+    user = user_scalars.first()
     if not user:
         return
 
@@ -137,7 +158,10 @@ async def add_to_favorite_boards(db: AsyncSession, user_id: str, board_id: str):
             user_favorite_boards.c.board_id == board_id,
         ))
     )
-    if not already.scalar():
+    already_scalar = already.scalar()
+    if inspect.isawaitable(already_scalar):
+        already_scalar = await already_scalar
+    if not already_scalar:
         await db.execute(
             user_favorite_boards.insert().values(
                 user_id=user_id,
@@ -164,4 +188,7 @@ async def already_member_of_board(db: AsyncSession, user_id: str, board_id: str)
             board_members.c.user_id == user_id,
         ))
     )
-    return result.scalar()
+    scalar = result.scalar()
+    if inspect.isawaitable(scalar):
+        scalar = await scalar
+    return scalar

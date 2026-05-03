@@ -89,4 +89,7 @@ class ThinkBoardUser(HttpUser):
 
     @task(1)
     def get_public_profile(self):
-        self.client.get("/profile/me", headers=self.headers)
+        if not self.username:
+            return
+
+        self.client.get(f"/profile/{self.username}", headers=self.headers)

@@ -16,6 +16,7 @@ from app.crud.user import (
 from app.schemas.user import UserCreate, UserLogin
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.events.auth_event import login_event, registration_event
 
 
 class AuthService:
@@ -39,6 +40,7 @@ class AuthService:
         await self.db.commit()
 
         self.logger.info(f"User registered: {user.email}")
+        registration_event(user.email)
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
@@ -69,6 +71,9 @@ class AuthService:
         await self.db.commit()
 
         self.logger.info(f"User logged in: {user.email}")
+
+        login_event(user.email)        
+
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
@@ -98,6 +103,8 @@ class AuthService:
         await self.db.commit()
 
         self.logger.info(f"Tokens refreshed for user: {user.id}")
+
+
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,

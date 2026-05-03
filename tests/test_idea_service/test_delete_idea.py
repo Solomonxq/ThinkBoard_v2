@@ -1,5 +1,4 @@
 from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
 from app.services.ideas_service import IdeaService
 from fastapi import HTTPException
@@ -49,8 +48,8 @@ async def test_delete_idea_not_found(idea_service):
         with pytest.raises(HTTPException) as ex:
             await idea_service.delete_idea("idea-123", "user-123", "board-123")
 
-        assert ex.value.status_code == 404
-        assert ex.value.detail == "Idea not found"
+    assert ex.value.status_code == 404
+    assert ex.value.detail == "Idea not found"
 
 
 @pytest.mark.asyncio
@@ -65,8 +64,8 @@ async def test_delete_idea_not_in_board(idea_service, mock_idea):
         with pytest.raises(HTTPException) as ex:
             await idea_service.delete_idea("idea-123", "user-123", "board-123")
 
-        assert ex.value.status_code == 404
-        assert ex.value.detail == "Idea not found in the specified board"
+    assert ex.value.status_code == 404
+    assert ex.value.detail == "Idea not found in the specified board"
 
 
 @pytest.mark.asyncio
@@ -81,5 +80,5 @@ async def test_delete_idea_not_owner(idea_service, mock_idea):
         with pytest.raises(HTTPException) as ex:
             await idea_service.delete_idea("idea-123", "user-123", "board-123")
 
-        assert ex.value.status_code == 403
-        assert ex.value.detail == "User is not the owner of the idea"
+    assert ex.value.status_code == 403
+    assert ex.value.detail == "User is not the owner of the idea"
