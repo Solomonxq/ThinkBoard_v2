@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from app.schemas.idea import IdeaCreate
 from app.services.ideas_service import IdeaService
 
-VOTING_ENDS_AT = datetime.now(timezone.utc) + timedelta(days=7)
+VOTING_ENDS_AT = datetime.now(timezone.utc) + timedelta(hours=12)
 
 
 @pytest.fixture
@@ -77,6 +77,12 @@ def test_create_idea_voting_ends_at_in_past():
     past = datetime.now(timezone.utc) - timedelta(days=1)
     with pytest.raises(ValidationError):
         IdeaCreate(title="Test Idea", description="Test", voting_ends_at=past)
+
+
+def test_create_idea_voting_ends_at_too_far():
+    too_far = datetime.now(timezone.utc) + timedelta(days=2)
+    with pytest.raises(ValidationError):
+        IdeaCreate(title="Test Idea", description="Test", voting_ends_at=too_far)
 
 
 def test_create_idea_empty_title():

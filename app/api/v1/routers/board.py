@@ -14,9 +14,6 @@ from fastapi import APIRouter, Depends
 router = APIRouter()
 
 
-# -------------------------
-# CREATE BOARD
-# -------------------------
 @router.post("/create", response_model=BoardResponse)
 async def create_board_route(
     data: BoardCreate,
@@ -26,9 +23,6 @@ async def create_board_route(
     return await service.create_board(data, current_user.id)
 
 
-# -------------------------
-# DELETE BOARD
-# -------------------------
 @router.delete("/{board_id}", status_code=204)
 async def delete_board_route(
     board_id: str,
@@ -38,9 +32,6 @@ async def delete_board_route(
     return await service.delete_board(board_id, current_user.id)
 
 
-# -------------------------
-# ADD MEMBER
-# -------------------------
 @router.post("/{board_id}/members", status_code=200)
 async def add_member_route(
     board_id: str,
@@ -56,9 +47,6 @@ async def add_member_route(
     return {"detail": "User added to board successfully"}
 
 
-# -------------------------
-# REMOVE MEMBER
-# -------------------------
 @router.delete("/{board_id}/members/{user_id}", status_code=200)
 async def remove_member_route(
     board_id: str,
@@ -74,9 +62,6 @@ async def remove_member_route(
     return {"detail": "User removed from board successfully"}
 
 
-# -------------------------
-# BULK ADD MEMBERS
-# -------------------------
 @router.post("/{board_id}/members/bulk", status_code=200)
 async def add_members_route(
     board_id: str,
@@ -106,9 +91,6 @@ async def remove_members_bulk_route(
     )
     return {"detail": "Users removed from board successfully"}
 
-# -------------------------
-# INCLUDE IDEAS ROUTER
-# -------------------------
 router.include_router(
     idea_router,
     prefix="/{board_id}/ideas",

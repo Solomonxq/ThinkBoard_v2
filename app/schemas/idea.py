@@ -1,5 +1,7 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pydantic import BaseModel, field_validator, Field
+
+MAX_VOTING_DURATION = timedelta(days=1)
 
 
 class IdeaCreate(BaseModel):
@@ -10,8 +12,11 @@ class IdeaCreate(BaseModel):
     @field_validator("voting_ends_at")
     @classmethod
     def voting_ends_at_must_be_future(cls, v):
-        if v <= datetime.now(timezone.utc):
+        now = datetime.now(timezone.utc)
+        if v <= now:
             raise ValueError("voting_ends_at must be in the future")
+        if v > now + MAX_VOTING_DURATION:
+            raise ValueError("voting_ends_at cannot be more than 1 day from now")
         return v
 
     @field_validator("title")

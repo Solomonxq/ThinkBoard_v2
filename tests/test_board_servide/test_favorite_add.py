@@ -5,9 +5,6 @@ from app.services.board_service import BoardService
 from fastapi import HTTPException
 
 
-# -------------------------
-# FIXTURES
-# -------------------------
 @pytest.fixture
 def mock_db():
     return AsyncMock()
@@ -16,15 +13,11 @@ def mock_db():
 def board_service(mock_db):
     return BoardService(db=mock_db)
 
-# -------------------------
-# SUCCESS ADD TO FAVORITE
-# -------------------------
 @pytest.mark.asyncio
 async def test_add_to_favorite_success(board_service, mock_db):
     mock_board = MagicMock()
     mock_board.id = "board-123"
 
-    # 👇 FIX DB EXECUTE CHAIN
     mock_result = MagicMock()
     mock_scalars = MagicMock()
     mock_scalars.first.return_value = MagicMock(id="user-123")
@@ -46,9 +39,6 @@ async def test_add_to_favorite_success(board_service, mock_db):
 
         mock_add.assert_awaited_once()
 
-# -------------------------
-# BOARD NOT FOUND
-# -------------------------
 @pytest.mark.asyncio
 async def test_add_to_favorite_board_not_found(board_service):
     with patch(
@@ -63,9 +53,6 @@ async def test_add_to_favorite_board_not_found(board_service):
         assert exc_info.value.detail == "Board not found"
 
 
-# -------------------------
-# DB ERROR
-# -------------------------
 @pytest.mark.asyncio
 async def test_add_to_favorite_db_error(board_service, mock_db):
     mock_board = MagicMock()

@@ -26,7 +26,6 @@ async def get_current_user(
     user_id = payload["sub"]
     redis = await get_redis()
 
-    # Перевір кеш
     cached = await redis.get(f"user:{user_id}")
     if cached:
         data = json.loads(cached)

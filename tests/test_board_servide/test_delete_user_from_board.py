@@ -5,9 +5,6 @@ from app.services.board_service import BoardService
 from fastapi import HTTPException
 
 
-# -------------------------
-# FIXTURES
-# -------------------------
 @pytest.fixture
 def mock_db():
     return AsyncMock()
@@ -16,9 +13,6 @@ def mock_db():
 def board_service(mock_db):
     return BoardService(db=mock_db)
 
-# -------------------------
-# SUCCESS DELETE USER FROM BOARD
-# -------------------------
 @pytest.mark.asyncio
 async def test_delete_user_from_board_success(board_service, mock_db):
     mock_board = MagicMock()
@@ -47,9 +41,7 @@ async def test_delete_user_from_board_success(board_service, mock_db):
             "user-456"
         )
 
-# -------------------------
-# USER NOT FOUND
-# -------------------------
+
 @pytest.mark.asyncio
 async def test_delete_user_from_board_user_not_found(board_service):
     with patch(
@@ -73,9 +65,7 @@ async def test_delete_user_from_board_user_not_found(board_service):
         assert exc.value.status_code == 404
         assert exc.value.detail == "User not found"
 
-# -------------------------
-# NOT OWNER
-# -------------------------
+
 @pytest.mark.asyncio
 async def test_delete_user_from_board_not_owner(board_service):
     with patch(
@@ -96,9 +86,7 @@ async def test_delete_user_from_board_not_owner(board_service):
         assert exc.value.status_code == 403
         assert exc.value.detail == "Only owner can remove users from the board"
 
-# -------------------------
-# ERROR DURING DELETE
-# -------------------------
+
 @pytest.mark.asyncio
 async def test_delete_user_from_board_db_error(board_service, mock_db):
     mock_board = MagicMock()

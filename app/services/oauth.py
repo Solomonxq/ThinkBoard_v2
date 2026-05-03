@@ -4,6 +4,7 @@ from urllib.parse import urlencode
 import httpx
 from app.core.config import settings
 from app.core.logging import setup_logging
+from app.core.redis import get_redis
 from app.core.security import create_refresh_token, create_token, hash_password
 from app.crud.user import get_user_by_username, get_user_email
 from app.models.user import User
@@ -37,6 +38,18 @@ class OAuthService:
         query = urlencode(params)
         return f"https://accounts.google.com/o/oauth2/v2/auth?{query}"
 
+    async def store_state(self, state: str) -> None:
+        redis = await get_redis()
+        await redis.set(f"oauth_state:{state}", "1", ex=600)
+
+    async def validate_state(self, state: str) -> None:
+        redis = await get_redis()
+        stored = await redis.get(f"oauth_state:{state}")
+        if not stored:
+            self.logger.warning(f"Invalid OAuth state attempted: {state}")
+            raise HTTPException(status_code=400, detail="Invalid OAuth state")
+        await redis.delete(f"oauth_state:{state}")
+
     async def exchange_code_for_token(self, code: str) -> dict:
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -50,6 +63,7 @@ class OAuthService:
                 },
             )
         if response.status_code != 200:
+            self.logger.error(f"Failed to exchange OAuth code: {response.status_code} - {response.text}")
             raise HTTPException(status_code=400, detail="Failed to exchange code")
         return response.json()
 
@@ -60,6 +74,7 @@ class OAuthService:
                 headers={"Authorization": f"Bearer {access_token}"},
             )
         if response.status_code != 200:
+            self.logger.error(f"Failed to fetch Google user info: {response.status_code} - {response.text}")
             raise HTTPException(status_code=400, detail="Failed to fetch user info")
         return response.json()
 
@@ -76,16 +91,19 @@ class OAuthService:
         self,
         code: str,
         state: str,
-        stored_state: str,
     ) -> dict:
-        if not state or state != stored_state:
+        if not state:
+            self.logger.warning("OAuth login attempt without state")
             raise HTTPException(status_code=400, detail="Invalid OAuth state")
+
+        await self.validate_state(state)
 
         token_data = await self.exchange_code_for_token(code)
         user_info = await self.get_google_user_info(token_data["access_token"])
 
         email = user_info.get("email")
         if not email:
+            self.logger.error("Google OAuth did not provide email")
             raise HTTPException(status_code=400, detail="Email not provided by Google")
 
         email = email.lower()

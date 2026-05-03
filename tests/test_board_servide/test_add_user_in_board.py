@@ -15,9 +15,7 @@ def board_service(mock_db):
     return BoardService(db=mock_db)
 
 
-# -------------------------
-# USER NOT FOUND
-# -------------------------
+
 @pytest.mark.asyncio
 async def test_add_user_to_board_user_not_found(board_service):
 
@@ -37,9 +35,7 @@ async def test_add_user_to_board_user_not_found(board_service):
         assert exc.value.detail == "User not found"
 
 
-# -------------------------
-# BOARD NOT FOUND
-# -------------------------
+
 @pytest.mark.asyncio
 async def test_add_user_to_board_board_not_found(board_service):
 
@@ -64,9 +60,7 @@ async def test_add_user_to_board_board_not_found(board_service):
         assert exc.value.status_code == 404
         assert exc.value.detail == "Board not found"
 
-# -------------------------
-# NOT OWNER
-# -------------------------
+
 @pytest.mark.asyncio
 async def test_add_user_to_board_not_owner(board_service):
 
@@ -89,9 +83,7 @@ async def test_add_user_to_board_not_owner(board_service):
             )
 
         assert exc.value.status_code == 403
-# -------------------------
-# USER ALREADY MEMBER
-# -------------------------
+
 @pytest.mark.asyncio
 async def test_add_user_to_board_already_member(board_service):
 
@@ -120,9 +112,7 @@ async def test_add_user_to_board_already_member(board_service):
         assert exc.value.detail == "User is already a member of the board"
 
 
-# -------------------------
-# SUCCESS DB ERROR
-# -------------------------
+
 @pytest.mark.asyncio
 async def test_add_user_to_board_db_error(board_service):
 

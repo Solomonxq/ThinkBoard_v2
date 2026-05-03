@@ -1,5 +1,3 @@
-from datetime import timedelta
-
 from app.models.idea import Idea
 from app.schemas.idea import IdeaCreate
 from app.utils.time import utcnow
@@ -13,7 +11,7 @@ async def create_idea(db: AsyncSession, data: IdeaCreate, user_id: str, board_id
         description=data.description,
         user_id=user_id,
         board_id=board_id,
-        voting_ends_at=utcnow() + timedelta(minutes=5),
+        voting_ends_at=data.voting_ends_at,
     )
     db.add(idea)
     await db.commit()

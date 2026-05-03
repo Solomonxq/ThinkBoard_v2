@@ -23,9 +23,9 @@ class VoteConnectionManager:
             try:
                 await connection.send_text(json.dumps(message))
             except Exception:
-                dead.append(connection)  # збираємо мертві
+                dead.append(connection) 
         
         for connection in dead:
-            self.active_connections[board_id].remove(connection)  # видаляємо
+            self.active_connections[board_id].remove(connection) 
 
 manager = VoteConnectionManager()

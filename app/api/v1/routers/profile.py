@@ -27,6 +27,13 @@ async def upload_my_avatar(
 ):
     return await service.upload_avatar(current_user, file)
 
+@router.delete("/me", status_code=204)
+async def delete_my_account(
+    service: ProfileService = Depends(get_profile_service),
+    current_user: User = Depends(get_current_user)
+):
+    await service.delete_account(current_user)
+
 @router.get("/{username}", response_model=UserPublicResponse)
 async def get_user_profile(
     username: str,

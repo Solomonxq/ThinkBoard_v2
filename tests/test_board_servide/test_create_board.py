@@ -7,9 +7,6 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 
 
-# -------------------------
-# FIXTURES
-# -------------------------
 @pytest.fixture
 def mock_db():
     return AsyncMock()
@@ -18,9 +15,6 @@ def mock_db():
 def board_service(mock_db):
     return BoardService(db=mock_db)
 
-# -------------------------
-# SUCCESS CREATE
-# -------------------------
 @pytest.mark.asyncio
 async def test_create_board_success(board_service, mock_db):
     data = BoardCreate(
@@ -47,9 +41,6 @@ async def test_create_board_success(board_service, mock_db):
         assert result.access == data.access
         assert result.description == data.description
 
-# -------------------------
-# CREATE FAILURE
-# -------------------------
 @pytest.mark.asyncio
 async def test_create_board_failure(board_service, mock_db):
     data = BoardCreate(

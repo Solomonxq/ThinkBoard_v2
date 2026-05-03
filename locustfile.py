@@ -12,7 +12,9 @@ def random_string(length=8):
 class ThinkBoardUser(HttpUser):
     wait_time = between(1, 3)
     token = None
+    refresh_token = None
     board_id = None
+    username = None
 
     def on_start(self):
         email = f"{random_string()}@test.com"
@@ -35,7 +37,10 @@ class ThinkBoardUser(HttpUser):
         })
 
         if response.status_code == 200:
-            self.token = response.json().get("access_token")
+            body = response.json()
+            self.token = body.get("access_token")
+            self.refresh_token = body.get("refresh_token")
+            self.username = username
             self.headers = {"Authorization": f"Bearer {self.token}"}
         else:
             self.headers = {}

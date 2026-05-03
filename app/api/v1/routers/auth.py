@@ -28,34 +28,19 @@ async def google_login(
     state = service.generate_state()
     auth_url = service.get_google_auth_url(state)
 
-    response = RedirectResponse(url=auth_url)
-
-    response.delete_cookie("oauth_state")
-    response.set_cookie(
-        key="oauth_state",
-        value=state,
-        httponly=True,
-        max_age=600,
-        samesite="lax",
-        secure=False,
-    )
-    return response
+    await service.store_state(state)
+    return RedirectResponse(url=auth_url)
 
 
 @router.get("/google/callback")
 async def google_callback(
     code: str,
     state: str,
-    request: Request,
     service: OAuthService = Depends(get_oauth_service)
 ):
-    stored_state = request.cookies.get("oauth_state")
-
-
     return await service.login_or_register(
         code=code,
         state=state,
-        stored_state=stored_state
     )
 
 
@@ -80,9 +65,6 @@ async def login(
     return await service.login_user(data)
 
 
-# -------------------------
-# REFRESH
-# -------------------------
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh(
     data: RefreshRequest,
@@ -91,17 +73,11 @@ async def refresh(
     return await service.refresh_tokens(data.refresh_token)
 
 
-# -------------------------
-# ME
-# -------------------------
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
-# -------------------------
-# SET PASSWORD
-# -------------------------
 @router.post("/set-password")
 async def set_password(
     data: SetPasswordRequest,

@@ -5,9 +5,6 @@ from app.services.board_service import BoardService
 from fastapi import HTTPException
 
 
-# -------------------------
-# FIXTURES
-# -------------------------
 @pytest.fixture
 def mock_db():
     return AsyncMock()
@@ -16,9 +13,7 @@ def mock_db():
 def board_service(mock_db):
     return BoardService(db=mock_db)
 
-# -------------------------
-# SUCCESS ADD USER TO BOARD
-# -------------------------
+
 @pytest.mark.asyncio
 async def test_add_user_to_board_success(board_service, mock_db):
     mock_board = MagicMock()
@@ -41,13 +36,11 @@ async def test_add_user_to_board_success(board_service, mock_db):
         new=AsyncMock()
     ) as mock_add:
 
-        await board_service.add_user_to_board("board-123", "user-456", "owner-123")  # ✅ current_id added
+        await board_service.add_user_to_board("board-123", "user-456", "owner-123") 
 
         mock_add.assert_awaited_once_with(mock_db, "board-123", "user-456")
 
-# -------------------------
-# DB ERROR
-# -------------------------
+
 @pytest.mark.asyncio
 async def test_add_user_to_board_db_error(board_service, mock_db):
     mock_board = MagicMock()
@@ -71,14 +64,12 @@ async def test_add_user_to_board_db_error(board_service, mock_db):
     ):
 
         with pytest.raises(HTTPException) as exc_info:
-            await board_service.add_user_to_board("board-123", "user-456", "owner-123")  # ✅
+            await board_service.add_user_to_board("board-123", "user-456", "owner-123")  
 
         assert exc_info.value.status_code == 500
         assert exc_info.value.detail == "Failed to add user to board"
 
-# -------------------------
-# USER NOT FOUND
-# -------------------------
+
 @pytest.mark.asyncio
 async def test_add_user_to_board_user_not_found(board_service):
     with patch(
@@ -86,14 +77,12 @@ async def test_add_user_to_board_user_not_found(board_service):
         new=AsyncMock(return_value=None)
     ):
         with pytest.raises(HTTPException) as exc:
-            await board_service.add_user_to_board("board-123", "user-456", "owner-123")  # ✅
+            await board_service.add_user_to_board("board-123", "user-456", "owner-123")  
 
         assert exc.value.status_code == 404
         assert exc.value.detail == "User not found"
 
-# -------------------------
-# BOARD NOT FOUND
-# -------------------------
+
 @pytest.mark.asyncio
 async def test_add_user_to_board_board_not_found(board_service):
 
@@ -101,21 +90,19 @@ async def test_add_user_to_board_board_not_found(board_service):
         "app.services.board_service.get_user_by_id",
         new=AsyncMock(return_value=MagicMock())
     ), patch(
-        "app.services.board_service.is_owner",       # ✅ must mock — runs before get_board_by_id
+        "app.services.board_service.is_owner",      
         new=AsyncMock(return_value=True)
     ), patch(
         "app.services.board_service.get_board_by_id",
         new=AsyncMock(return_value=None)
     ):
         with pytest.raises(HTTPException) as exc:
-            await board_service.add_user_to_board("board-123", "user-456", "owner-123")  # ✅
+            await board_service.add_user_to_board("board-123", "user-456", "owner-123") 
 
         assert exc.value.status_code == 404
         assert exc.value.detail == "Board not found"
 
-# -------------------------
-# USER ALREADY MEMBER OF BOARD
-# -------------------------
+
 @pytest.mark.asyncio
 async def test_add_user_to_board_already_member(board_service):
     mock_board = MagicMock()
@@ -125,7 +112,7 @@ async def test_add_user_to_board_already_member(board_service):
         "app.services.board_service.get_user_by_id",
         new=AsyncMock(return_value=MagicMock(id="user-456"))
     ), patch(
-        "app.services.board_service.is_owner",       # ✅ must mock — runs before crud_already_member_of_board
+        "app.services.board_service.is_owner",     
         new=AsyncMock(return_value=True)
     ), patch(
         "app.services.board_service.get_board_by_id",
@@ -135,7 +122,7 @@ async def test_add_user_to_board_already_member(board_service):
         new=AsyncMock(return_value=True)
     ):
         with pytest.raises(HTTPException) as exc:
-            await board_service.add_user_to_board("board-123", "user-456", "owner-123")  # ✅
+            await board_service.add_user_to_board("board-123", "user-456", "owner-123") 
 
         assert exc.value.status_code == 400
         assert exc.value.detail == "User is already a member of the board"

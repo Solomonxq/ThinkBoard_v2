@@ -5,7 +5,7 @@ import uuid
 
 from app.core.logging import setup_logging
 from app.core.redis import get_redis
-from app.crud.user import update_user_profile
+from app.crud.user import delete_user, get_user_by_id, update_user_profile
 from app.models.associations import board_members
 from app.models.board import Board
 from app.models.user import User
@@ -15,11 +15,9 @@ from PIL import Image
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-UPLOAD_DIR = "/app/uploads/avatars"
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploads/avatars")
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_SIZE = 5 * 1024 * 1024
-
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 class ProfileService:
@@ -33,12 +31,12 @@ class ProfileService:
     async def update_profile(self, user: User, data: UpdateProfileRequest) -> User:
         update_data = data.model_dump(exclude_none=True)
         if not update_data:
+            self.logger.warning(f"No data provided for profile update by user {user.id}")
             raise HTTPException(status_code=400, detail="No data to update")
 
         self.logger.info(f"Updating profile for user {user.id}")
         updated = await update_user_profile(self.db, user, update_data)
 
-        # Інвалідуємо кеш
         redis = await get_redis()
         await redis.delete(f"profile:{user.username}")
         await redis.delete(f"user:{user.id}")
@@ -49,17 +47,22 @@ class ProfileService:
         contents = await file.read()
 
         if len(contents) > self.max_size:
+            self.logger.warning(f"File too large uploaded by user {user.id}: {len(contents)} bytes")
             raise HTTPException(status_code=400, detail="File too large. Max 5MB")
+
+        os.makedirs(self.upload_dir, exist_ok=True)
 
         try:
             image = Image.open(io.BytesIO(contents))
             image.verify()
             format = image.format.upper()
         except Exception:
+            self.logger.warning(f"Invalid image file uploaded by user {user.id}")
             raise HTTPException(status_code=400, detail="Invalid image file")
 
         allowed_formats = {"JPEG", "PNG", "WEBP"}
         if format not in allowed_formats:
+            self.logger.warning(f"Unsupported image format uploaded by user {user.id}: {format}")
             raise HTTPException(
                 status_code=400,
                 detail="Only JPEG, PNG, WEBP allowed"
@@ -82,7 +85,6 @@ class ProfileService:
             {"avatar_url": avatar_url}
         )
 
-        # Інвалідуємо кеш
         redis = await get_redis()
         await redis.delete(f"profile:{user.username}")
         await redis.delete(f"user:{user.id}")
@@ -102,6 +104,7 @@ class ProfileService:
         )
         user = result.scalars().first()
         if not user:
+            self.logger.warning(f"Public profile requested for non-existent user: {username}")
             raise HTTPException(status_code=404, detail="User not found")
 
         owned = await self.db.execute(
@@ -134,3 +137,28 @@ class ProfileService:
 
         await redis.setex(cache_key, 120, json.dumps(data))
         return data
+
+    async def delete_account(self, user: User) -> None:
+        self.logger.info(f"Deleting profile for user {user.id}")
+
+        persisted_user = await get_user_by_id(self.db, user.id)
+        if not persisted_user:
+            self.logger.warning(f"Attempt to delete non-existent user: {user.id}")
+            raise HTTPException(status_code=404, detail="User not found")
+
+        if persisted_user.avatar_url:
+            avatar_path = os.path.join(
+                self.upload_dir,
+                os.path.basename(persisted_user.avatar_url)
+            )
+            if os.path.exists(avatar_path):
+                try:
+                    os.remove(avatar_path)
+                except OSError:
+                    self.logger.warning(f"Failed to remove avatar file: {avatar_path}")
+
+        await delete_user(self.db, persisted_user)
+
+        redis = await get_redis()
+        await redis.delete(f"profile:{persisted_user.username}")
+        await redis.delete(f"user:{persisted_user.id}")
