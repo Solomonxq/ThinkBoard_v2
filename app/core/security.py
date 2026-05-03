@@ -5,7 +5,7 @@ from app.core.config import settings
 from app.utils.time import utcnow
 from passlib.context import CryptContext
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds = 10)
 secret_key = settings.secret_key
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 ALGORITHM = settings.algorithm

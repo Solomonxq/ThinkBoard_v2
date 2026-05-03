@@ -9,34 +9,30 @@ class Vote(Base):
     __tablename__ = "votes"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
-
     idea_id = Column(
         String(36),
         ForeignKey("ideas.id", ondelete="CASCADE"),
         nullable=False,
-        index=True
+        index=True,
     )
-
     user_id = Column(
         String(36),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
-        index=True
+        index=True,
     )
-
     status = Column(Boolean, nullable=False)
-
-
     vote_at = Column(DateTime(timezone=True), default=utcnow)
 
     idea = relationship(
         "Idea",
-        back_populates="votes"
+        back_populates="votes",
+        lazy="selectin",
     )
-
     user = relationship(
         "User",
-        back_populates="votes"
+        back_populates="votes",
+        lazy="selectin",
     )
 
     __table_args__ = (

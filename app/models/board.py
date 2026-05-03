@@ -11,13 +11,12 @@ class Board(Base):
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     board_name = Column(String(25), nullable=False, index=True)
-
     owner_id = Column(
         String(36),
         ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False
+        nullable=False,
+        index=True,
     )
-
     created_at = Column(DateTime(timezone=True), default=utcnow)
     access = Column(Boolean, default=False)
     description = Column(String(500), nullable=False)
@@ -25,26 +24,25 @@ class Board(Base):
     owner = relationship(
         "User",
         back_populates="boards",
-        foreign_keys=[owner_id]
+        foreign_keys=[owner_id],
+        lazy="selectin",
     )
-
     members = relationship(
         "User",
         secondary=board_members,
-        back_populates="member_of"
+        back_populates="member_of",
+        lazy="selectin",
     )
-
     favorite_by = relationship(
         "User",
         secondary=user_favorite_boards,
-        back_populates="favorite_boards"
+        back_populates="favorite_boards",
+        lazy="selectin",
     )
-
     ideas = relationship(
         "Idea",
         back_populates="board",
         cascade="all, delete-orphan",
-        passive_deletes=True
+        passive_deletes=True,
+        lazy="selectin",
     )
-
-

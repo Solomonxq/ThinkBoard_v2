@@ -45,6 +45,7 @@ class AuthService:
 
     async def login_user(self, data: UserLogin) -> dict:
         user = await get_user_email(self.db, data.email)
+
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
 
@@ -59,15 +60,17 @@ class AuthService:
 
         access_token = create_token({"sub": str(user.id), "email": user.email})
         refresh_token = create_refresh_token({"sub": str(user.id), "email": user.email})
-        user.refresh_token = hash_password(refresh_token)
+
+        user.refresh_token = refresh_token
         await self.db.commit()
+
         self.logger.info(f"User logged in: {user.email}")
 
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "bearer",
-            "needs_password": False
+            "needs_password": False,
         }
 
     async def refresh_tokens(self, token: str) -> dict:

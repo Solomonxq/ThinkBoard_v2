@@ -19,14 +19,12 @@ async def comprehensive_middleware(request: Request, call_next):
         f"Client: {request.client.host if request.client else 'unknown'}"
     )
 
-    auth_token = request.headers.get("Authorization")
-    if auth_token:
+    if request.headers.get("Authorization"):
         logger.info(f"[{request_id}] 🔐 Auth token отримано")
 
-    origin = request.headers.get("origin")
-    logger.debug(f"[{request_id}] Origin: {origin}")
+    logger.debug(f"[{request_id}] Origin: {request.headers.get('origin')}")
 
-    start_time = time.time()
+    start_time = time.perf_counter() 
 
     try:
         response = await call_next(request)
@@ -35,12 +33,12 @@ async def comprehensive_middleware(request: Request, call_next):
         return JSONResponse(
             content={"error": "Internal server error"},
             status_code=500,
-            headers={"X-Request-ID": request_id}
+            headers={"X-Request-ID": request_id},
         )
 
-    process_time = time.time() - start_time
+    process_time = time.perf_counter() - start_time
 
-    response.headers["X-Process-Time"] = str(round(process_time, 4))
+    response.headers["X-Process-Time"] = f"{process_time * 1000:.2f}ms"
     response.headers["X-Request-ID"] = request_id
     response.headers["X-App-Version"] = "1.0.0"
     response.headers["X-Powered-By"] = "FastAPI"
@@ -51,7 +49,13 @@ async def comprehensive_middleware(request: Request, call_next):
 
     logger.info(
         f"[{request_id}] ⬅️  Статус: {response.status_code} | "
-        f"Час: {process_time:.4f}s"
+        f"Час: {process_time * 1000:.2f}ms"
     )
+
+    if process_time > 0.5:
+        logger.warning(
+            f"[{request_id}] 🐢 SLOW {request.method} {request.url.path} "
+            f"[{process_time * 1000:.2f}ms]"
+        )
 
     return response

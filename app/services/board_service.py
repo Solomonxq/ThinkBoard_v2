@@ -1,7 +1,7 @@
 from app.core.logging import setup_logging
 from app.crud.board import add_to_favorite_boards as crud_add_to_favorite_boards
 from app.crud.board import add_user_to_board as crud_add_user_to_board
-from app.crud.board import alredy_member_of_board as crud_alredy_member_of_board
+from app.crud.board import already_member_of_board as crud_already_member_of_board
 from app.crud.board import create_board as crud_create_board
 from app.crud.board import delete_board as crud_delete_board
 from app.crud.board import delete_user_from_board as crud_delete_user_from_board
@@ -15,6 +15,7 @@ from app.schemas.board import BoardCreate
 from fastapi import HTTPException
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
+import traceback
 
 
 class BoardService:
@@ -23,17 +24,14 @@ class BoardService:
         self.logger = setup_logging()
 
 
-    async def create_board(self,data: BoardCreate, owner_id: str) -> Board:
+   
+    async def create_board(self, data: BoardCreate, owner_id: str) -> Board:
         self.logger.info(f"Creating board '{data.board_name}' for owner {owner_id}")
         try:
             return await crud_create_board(self.db, data, owner_id)
-        except ValidationError as e:
-            self.logger.error(f"Validation error occurred while creating board: {e}")
-            raise HTTPException(status_code=422, detail="Invalid board data")
         except Exception as e:
-            self.logger.error(f"Error occurred while creating board: {e}")
+            self.logger.error(f"Error occurred while creating board: {traceback.format_exc()}")
             raise HTTPException(status_code=500, detail="Failed to create board")
-
 
     async def delete_board(self,board_id:str,user_id:str):
         board = await get_board_by_id(self.db, board_id)
@@ -63,7 +61,7 @@ class BoardService:
         if not board:
             self.logger.error(f"Board with ID {board_id} not found for adding user {user_id}")
             raise HTTPException(status_code=404, detail="Board not found")
-        if await crud_alredy_member_of_board(self.db, user_id, board_id):
+        if await crud_already_member_of_board(self.db, user_id, board_id):
             self.logger.error(f"User {user_id} is already a member of board {board_id}")
             raise HTTPException(status_code=400, detail="User is already a member of the board")
         try:

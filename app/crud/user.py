@@ -9,10 +9,6 @@ from sqlalchemy.orm import selectinload
 async def get_user_email(db: AsyncSession, email: str) -> User | None:
     result = await db.execute(
         select(User)
-        .options(
-            selectinload(User.boards),
-            selectinload(User.member_of)
-        )
         .where(User.email == email.lower())
     )
     return result.scalars().first()
@@ -36,13 +32,7 @@ async def create_user(db: AsyncSession, data: UserCreate) -> User:
 
 async def get_user_by_id(db: AsyncSession, user_id: str) -> User | None:
     result = await db.execute(
-        select(User)
-        .options(
-            selectinload(User.boards),
-            selectinload(User.member_of),
-            selectinload(User.favorite_boards)
-        )
-        .where(User.id == user_id)
+        select(User).where(User.id == user_id)
     )
     return result.scalars().first()
 

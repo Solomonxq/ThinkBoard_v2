@@ -21,10 +21,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
-
-# -------------------------
-# GOOGLE LOGIN
-# -------------------------
 @router.get("/google")
 async def google_login(
     service: OAuthService = Depends(get_oauth_service)
@@ -45,9 +41,7 @@ async def google_login(
     )
     return response
 
-# -------------------------
-# GOOGLE CALLBACK
-# -------------------------
+
 @router.get("/google/callback")
 async def google_callback(
     code: str,
@@ -64,9 +58,7 @@ async def google_callback(
         stored_state=stored_state
     )
 
-# -------------------------
-# REGISTER
-# -------------------------
+
 @router.post("/register", response_model=RegisterResponse)
 @limiter.limit("3/minute")
 async def register(
@@ -77,9 +69,7 @@ async def register(
     return await service.register_user(data)
 
 
-# -------------------------
-# LOGIN
-# -------------------------
+
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("5/minute")
 async def login(

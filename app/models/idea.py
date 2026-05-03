@@ -8,48 +8,41 @@ from sqlalchemy.orm import relationship
 class Idea(Base):
     __tablename__ = "ideas"
 
-
     id = Column(String(36), primary_key=True, default=generate_uuid)
-
     title = Column(String(100), nullable=False)
     description = Column(String(500), nullable=True)
-
     created_at = Column(DateTime(timezone=True), default=utcnow)
-
     board_id = Column(
         String(36),
         ForeignKey("boards.id", ondelete="CASCADE"),
-        nullable=False
+        nullable=False,
+        index=True,
     )
-
     user_id = Column(
         String(36),
         ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False
+        nullable=False,
+        index=True,
     )
-
-    voting_ends_at = Column(DateTime(timezone=True), nullable=True)
-
-
-    accepted = Column(Boolean,default=False,nullable=False)
-
+    voting_ends_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    accepted = Column(Boolean, default=False, nullable=False)
 
     board = relationship(
         "Board",
-        back_populates="ideas"
+        back_populates="ideas",
+        lazy="selectin",
     )
-
     user = relationship(
         "User",
-        back_populates="ideas"
+        back_populates="ideas",
+        lazy="selectin",
     )
     votes = relationship(
         "Vote",
         back_populates="idea",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        lazy="selectin",
     )
-
-
 
     __table_args__ = (
         UniqueConstraint("board_id", "title", name="uq_board_idea_title"),

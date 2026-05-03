@@ -18,10 +18,14 @@ class VoteConnectionManager:
             self.active_connections[board_id].remove(websocket)
 
     async def broadcast(self, board_id: str, message: dict):
+        dead = []
         for connection in self.active_connections[board_id]:
             try:
                 await connection.send_text(json.dumps(message))
             except Exception:
-                pass
+                dead.append(connection)  # збираємо мертві
+        
+        for connection in dead:
+            self.active_connections[board_id].remove(connection)  # видаляємо
 
 manager = VoteConnectionManager()

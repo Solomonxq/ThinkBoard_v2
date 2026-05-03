@@ -4,6 +4,10 @@ from app.db.session import get_db
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.models.user import User
+import json
+from app.core.redis import get_redis
+
 
 bearer = HTTPBearer()
 
@@ -15,22 +19,28 @@ async def get_current_user(
     payload = decode_token(token)
 
     if not payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token"
-        )
-
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
     if payload.get("type") != "access":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token type"
-        )
+        raise HTTPException(status_code=401, detail="Invalid token type")
 
-    user = await get_user_by_id(db, payload["sub"])
+    user_id = payload["sub"]
+    redis = await get_redis()
+
+    # Перевір кеш
+    cached = await redis.get(f"user:{user_id}")
+    if cached:
+        data = json.loads(cached)
+        return User(**data)
+
+    user = await get_user_by_id(db, user_id)
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
-        )
+        raise HTTPException(status_code=401, detail="User not found")
+
+    await redis.setex(f"user:{user_id}", 300, json.dumps({
+        "id": str(user.id),
+        "email": user.email,
+        "username": user.username,
+        "is_active": user.is_active,
+    }))
 
     return user

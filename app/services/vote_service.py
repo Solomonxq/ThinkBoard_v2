@@ -4,7 +4,7 @@ from app.core.logging import setup_logging
 from app.core.redis import get_redis
 from app.core.security import decode_token
 from app.core.ws_manager import manager
-from app.crud.board import alredy_member_of_board
+from app.crud.board import already_member_of_board
 from app.crud.idea import delete_idea, get_idea_by_id
 from app.crud.vote import create_vote, get_vote, get_vote_counts, update_vote
 from app.db.session import SessionLocal
@@ -107,7 +107,7 @@ class VoteService:
     ) -> dict:
         self.logger.info(f"[VOTE] user={user_id} idea={idea_id} status={status}")
 
-        if not await alredy_member_of_board(self.db, user_id, board_id):
+        if not await already_member_of_board(self.db, user_id, board_id):
             self.logger.warning(f"[VOTE DENIED] user={user_id} not in board={board_id}")
             raise HTTPException(status_code=403, detail="Not in board")
 

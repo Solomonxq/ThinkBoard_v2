@@ -15,9 +15,7 @@ from app.core.redis import connect_redis, disconnect_redis
 
 logger = setup_logging()
 
-# -------------------------
-# LIMITER (GLOBAL)
-# -------------------------
+
 limiter = Limiter(key_func=get_remote_address)
 
 
@@ -33,14 +31,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# -------------------------
-# ATTACH LIMITER TO APP
-# -------------------------
+
 app.state.limiter = limiter
 
-# -------------------------
-# MIDDLEWARES
-# -------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -55,22 +48,15 @@ app.add_middleware(SlowAPIMiddleware)
 
 app.middleware("http")(comprehensive_middleware)
 
-# -------------------------
-# EXCEPTION HANDLER (IMPORTANT)
-# -------------------------
+
 app.add_exception_handler(
     RateLimitExceeded,
     _rate_limit_exceeded_handler
 )
 
-# -------------------------
-# STATIC FILES
-# -------------------------
 app.mount("/uploads", StaticFiles(directory="/app/uploads"), name="uploads")
 
-# -------------------------
-# ROUTES
-# -------------------------
+
 app.include_router(api_router)
 
 
