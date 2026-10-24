@@ -74,19 +74,5 @@ services:
     command: >
       sh -c "uv run celery -A app.core.celery_app worker --loglevel=info"
 
-  frontend:
-    build: ./frontend
-    container_name: thinkboard_frontend
-    restart: always
-    depends_on:
-      - backend
-    environment:
-      - VITE_API_TARGET=http://backend:8000
-    ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-
 volumes:
   postgres_data:
