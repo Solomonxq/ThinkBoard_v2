@@ -5,7 +5,13 @@ from app.crud.board import already_member_of_board as crud_already_member_of_boa
 from app.crud.board import create_board as crud_create_board
 from app.crud.board import delete_board as crud_delete_board
 from app.crud.board import delete_user_from_board as crud_delete_user_from_board
-from app.crud.board import get_board_by_id, is_owner
+from app.crud.board import (
+    get_board_by_id,
+    get_board_with_ideas,
+    get_favorite_board_ids,
+    get_user_boards,
+    is_owner,
+)
 from app.crud.board import (
     remove_from_favorite_boards as crud_remove_from_favorite_boards,
 )
@@ -196,3 +202,50 @@ class BoardService:
         except Exception as e:
             self.logger.error(f"Error occurred while removing board {board_id} from favorites for user {user_id}: {e}")
             raise HTTPException(status_code=500, detail="Failed to remove board from favorites")
+
+
+    def _board_to_dict(self, board: Board, favorite_ids: set[str]) -> dict:
+        return {
+            "id": board.id,
+            "board_name": board.board_name,
+            "description": board.description,
+            "owner_id": board.owner_id,
+            "access": board.access,
+            "created_at": board.created_at,
+            "members": board.members,
+            "is_favorite": board.id in favorite_ids,
+            "ideas_count": len(board.ideas),
+        }
+
+    async def list_user_boards(self, user_id: str) -> list[dict]:
+        boards = await get_user_boards(self.db, user_id)
+        favorite_ids = await get_favorite_board_ids(self.db, user_id)
+        return [self._board_to_dict(board, favorite_ids) for board in boards]
+
+    async def get_board_detail(self, board_id: str, user_id: str) -> dict:
+        board = await get_board_with_ideas(self.db, board_id)
+        if not board:
+            raise HTTPException(status_code=404, detail="Board not found")
+        is_member = any(m.id == user_id for m in board.members)
+        if not is_member and not board.access:
+            raise HTTPException(status_code=403, detail="No access to this board")
+
+        favorite_ids = await get_favorite_board_ids(self.db, user_id)
+        data = self._board_to_dict(board, favorite_ids)
+        data["ideas"] = [
+            {
+                "id": idea.id,
+                "title": idea.title,
+                "description": idea.description,
+                "board_id": idea.board_id,
+                "user_id": idea.user_id,
+                "accepted": idea.accepted,
+                "voting_ends_at": idea.voting_ends_at,
+                "created_at": idea.created_at,
+                "author": idea.user.username if idea.user else None,
+                "approve": sum(1 for v in idea.votes if v.status),
+                "reject": sum(1 for v in idea.votes if not v.status),
+            }
+            for idea in sorted(board.ideas, key=lambda i: i.created_at, reverse=True)
+        ]
+        return data

@@ -37,3 +37,8 @@ class IdeaResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+class IdeaDetail(IdeaResponse):
+    author: str | None = None
+    approve: int = 0
+    reject: int = 0

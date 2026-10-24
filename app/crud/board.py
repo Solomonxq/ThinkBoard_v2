@@ -192,3 +192,29 @@ async def already_member_of_board(db: AsyncSession, user_id: str, board_id: str)
     if inspect.isawaitable(scalar):
         scalar = await scalar
     return scalar
+
+async def get_user_boards(db: AsyncSession, user_id: str) -> list[Board]:
+    result = await db.execute(
+        select(Board)
+        .join(board_members, Board.id == board_members.c.board_id)
+        .where(board_members.c.user_id == user_id)
+        .order_by(Board.created_at.desc())
+    )
+    return list(result.scalars().all())
+
+
+async def get_board_with_ideas(db: AsyncSession, board_id: str) -> Board | None:
+    result = await db.execute(
+        select(Board)
+        .options(selectinload(Board.members), selectinload(Board.ideas))
+        .where(Board.id == board_id)
+    )
+    return result.scalars().first()
+
+
+async def get_favorite_board_ids(db: AsyncSession, user_id: str) -> set[str]:
+    result = await db.execute(
+        select(user_favorite_boards.c.board_id)
+        .where(user_favorite_boards.c.user_id == user_id)
+    )
+    return set(result.scalars().all())

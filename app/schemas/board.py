@@ -1,3 +1,6 @@
+from datetime import datetime
+
+from app.schemas.idea import IdeaDetail
 from app.schemas.common import UserShort
 from pydantic import BaseModel, Field
 
@@ -24,3 +27,11 @@ class BoardResponse(BaseModel):
     access: bool
     members: list[UserShort] = []
     model_config = {"from_attributes": True}
+
+class BoardListItem(BoardResponse):
+    created_at: datetime | None = None
+    is_favorite: bool = False
+    ideas_count: int = 0
+
+class BoardDetailResponse(BoardListItem):
+    ideas: list[IdeaDetail] = []

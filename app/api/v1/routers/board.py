@@ -5,6 +5,8 @@ from app.models.user import User
 from app.schemas.board import (
     AddMemberRequest,
     BoardCreate,
+    BoardDetailResponse,
+    BoardListItem,
     BoardResponse,
     BulkMemberRequest,
 )
@@ -21,6 +23,43 @@ async def create_board_route(
     current_user: User = Depends(get_current_user),
 ):
     return await service.create_board(data, current_user.id)
+
+
+@router.get("/", response_model=list[BoardListItem])
+async def list_my_boards_route(
+    service: BoardService = Depends(get_board_service),
+    current_user: User = Depends(get_current_user),
+):
+    return await service.list_user_boards(current_user.id)
+
+
+@router.get("/{board_id}", response_model=BoardDetailResponse)
+async def get_board_route(
+    board_id: str,
+    service: BoardService = Depends(get_board_service),
+    current_user: User = Depends(get_current_user),
+):
+    return await service.get_board_detail(board_id, current_user.id)
+
+
+@router.post("/{board_id}/favorite", status_code=200)
+async def add_favorite_route(
+    board_id: str,
+    service: BoardService = Depends(get_board_service),
+    current_user: User = Depends(get_current_user),
+):
+    await service.add_to_favorite_boards(current_user.id, board_id)
+    return {"detail": "Board added to favorites"}
+
+
+@router.delete("/{board_id}/favorite", status_code=200)
+async def remove_favorite_route(
+    board_id: str,
+    service: BoardService = Depends(get_board_service),
+    current_user: User = Depends(get_current_user),
+):
+    await service.remove_from_favorite_boards(board_id, current_user.id)
+    return {"detail": "Board removed from favorites"}
 
 
 @router.delete("/{board_id}", status_code=204)

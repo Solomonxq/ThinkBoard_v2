@@ -37,7 +37,13 @@ class ProfileService:
             raise HTTPException(status_code=400, detail="No data to update")
 
         self.logger.info(f"Updating profile for user {user.id}")
+        # current_user may come from the Redis cache (detached object), so load the persisted one
+        old_username = user.username
+        user = await get_user_by_id(self.db, user.id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
         updated = await update_user_profile(self.db, user, update_data)
+        await (await get_redis()).delete(f"profile:{old_username}")
 
         redis = await get_redis()
         await redis.delete(f"profile:{user.username}")
@@ -81,9 +87,12 @@ class ProfileService:
         avatar_url = f"/uploads/avatars/{filename}"
         self.logger.info(f"Avatar uploaded for user {user.id}: {avatar_url}")
 
+        persisted_user = await get_user_by_id(self.db, user.id)
+        if not persisted_user:
+            raise HTTPException(status_code=404, detail="User not found")
         updated = await update_user_profile(
             self.db,
-            user,
+            persisted_user,
             {"avatar_url": avatar_url}
         )
 

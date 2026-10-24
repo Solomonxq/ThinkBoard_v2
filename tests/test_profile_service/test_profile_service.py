@@ -32,6 +32,7 @@ async def test_update_profile_success(profile_service):
     mock_redis.delete = AsyncMock()
 
     with patch("app.services.profile_service.update_user_profile", new=AsyncMock(return_value=updated_user)) as mock_update, \
+         patch("app.services.profile_service.get_user_by_id", new=AsyncMock(return_value=mock_user)), \
          patch("app.services.profile_service.get_redis", new=AsyncMock(return_value=mock_redis)):
         result = await profile_service.update_profile(mock_user, data)
 
